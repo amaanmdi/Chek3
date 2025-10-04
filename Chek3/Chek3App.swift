@@ -6,16 +6,21 @@
 //
 
 import SwiftUI
-import CoreData
 
 @main
 struct Chek3App: App {
-    let persistenceController = PersistenceController.shared
+    private let env: AppEnvironment = {
+        #if DEBUG
+        return .stub()
+        #else
+        return .production()
+        #endif
+    }()
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
-                .environment(\.managedObjectContext, persistenceController.container.viewContext)
+            AppView()
+                .environment(\.appEnv, env)
         }
     }
 }
