@@ -51,6 +51,8 @@ Chek3/
 - **Display Name Management**: Automatic combination of first and last names
 - **Session Management**: Automatic token refresh and session handling
 - **Email Verification**: Built-in email confirmation flow
+- **Account Validation**: Automatic validation of user account existence on app load
+- **Data Cleanup**: Automatic cleanup of local data for deleted accounts
 
 ### **📊 Category Management Features**
 - **Create Categories**: Add new budget categories with custom colors
@@ -133,6 +135,7 @@ open Chek3.xcodeproj
 - `AuthService.swift` - Authentication business logic and coordination
 - `CategoryService.swift` - Category business logic and coordination
 - `DefaultCategoryService.swift` - Default category setup for new users
+- `AccountValidationService.swift` - User account validation and cleanup
 - `NetworkMonitorService.swift` - Network connectivity monitoring
 - `LocalStorageService.swift` - Local data persistence management
 - `SyncService.swift` - Data synchronization logic (refactored with helper classes)
@@ -171,6 +174,12 @@ open Chek3.xcodeproj
    - `FirstView` observes `AuthService.currentUser`
    - Category management interface is shown when user is authenticated
    - Updates automatically when authentication state changes
+
+4. **Account Validation**:
+   - On app load, `AccountValidationService` validates user account existence
+   - If account is deleted or invalid, local data is cleaned up and user is signed out
+   - Validation is skipped when offline to avoid false positives
+   - Comprehensive logging for debugging account validation issues
 
 ### **Category Management Flow**
 1. **New User Setup**:
@@ -221,6 +230,14 @@ open Chek3.xcodeproj
   - Expenses: "Backlog" (orange), "Fixed" (blue), "One-off" (purple)
 - Ensures default categories are marked as `isDefault = true`
 - Provides validation utilities for system default categories
+
+#### **AccountValidationService** (`Services/AccountValidationService.swift`)
+- Implements `AccountValidationProtocol` for user account validation
+- Validates user account existence on app load using live server requests
+- Uses session refresh to detect deleted or invalid accounts
+- Performs cleanup of local data if account is invalid
+- Automatically signs out users with deleted accounts
+- Handles network connectivity gracefully (skips validation when offline)
 
 #### **AuthView** (`Views/AuthView.swift`)
 - Complete authentication interface

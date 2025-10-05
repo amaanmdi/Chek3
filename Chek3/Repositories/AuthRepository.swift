@@ -19,6 +19,8 @@ protocol AuthRepository {
     func signIn(email: String, password: String) async throws -> AuthResponse
     func signOut() async throws
     func getCurrentSession() async throws -> Session
+    func getCurrentUser() async throws -> User?
+    func validateUserExists(userID: UUID) async throws -> Bool
     func resendVerification(email: String) async throws
 }
 
@@ -53,6 +55,27 @@ class SupabaseAuthRepository: AuthRepository {
     
     func getCurrentSession() async throws -> Session {
         return try await supabase.auth.session
+    }
+    
+    func getCurrentUser() async throws -> User? {
+        let session = try await supabase.auth.session
+        return session.user
+    }
+    
+    func validateUserExists(userID: UUID) async throws -> Bool {
+        // Try to refresh the session - this will fail if the user account has been deleted
+        // or if the session is invalid
+        do {
+            let session = try await supabase.auth.refreshSession()
+            // If we can refresh the session, the user still exists
+            return session.user.id == userID
+        } catch {
+            // If refresh fails, the user account likely doesn't exist or is invalid
+            #if DEBUG
+            print("🔍 AuthRepository: Session refresh failed for user \(userID): \(error)")
+            #endif
+            return false
+        }
     }
     
     func resendVerification(email: String) async throws {

@@ -57,12 +57,18 @@ class AuthService: ObservableObject {
             await sessionManager.checkSessionStatus()
             
             if sessionManager.isSessionValid {
-                // Load user data
-                CategoryService.shared.loadUserData()
+                // Validate that the user's account still exists on the server
+                await AccountValidationService.shared.validateCurrentUserAccount()
                 
-                // Check if this is a new user and create default categories
-                if let currentUser = sessionManager.currentSession?.user {
-                    await checkAndSetupDefaultCategories(for: currentUser.id)
+                // Only proceed if the user is still authenticated after validation
+                if sessionManager.isSessionValid {
+                    // Load user data
+                    CategoryService.shared.loadUserData()
+                    
+                    // Check if this is a new user and create default categories
+                    if let currentUser = sessionManager.currentSession?.user {
+                        await checkAndSetupDefaultCategories(for: currentUser.id)
+                    }
                 }
             }
         }
