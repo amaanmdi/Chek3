@@ -1,20 +1,23 @@
-# 🚀 iOS App Starting Ground
+# 🚀 Chek3 - iOS Budget Management App
 
-A **production-ready foundation** for iOS app development using SwiftUI and MVVM architecture. This template saves you hours of setup time and provides a solid, scalable foundation for all your iOS projects.
+A **production-ready iOS app** built with SwiftUI and Supabase. Features user authentication, category management with local-first sync, and offline support with clean MVVM architecture.
 
 [![Swift](https://img.shields.io/badge/Swift-5.0+-orange.svg)](https://swift.org)
 [![iOS](https://img.shields.io/badge/iOS-26.0+-blue.svg)](https://developer.apple.com/ios/)
 [![SwiftUI](https://img.shields.io/badge/SwiftUI-Yes-green.svg)](https://developer.apple.com/xcode/swiftui/)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-## ✨ Why Use This Foundation?
+## ✨ Key Features
 
+- 🔐 **Supabase Authentication**: Complete user registration and login system
+- 📊 **Category Management**: Full CRUD operations for budget categories
+- 🔄 **Local-First Sync**: Offline support with automatic sync when online
+- 📱 **Real-time Sync Status**: Visual indicators for sync state and connectivity
+- 👤 **User Display Name**: Shows current user's name and email above sync status
+- 🎨 **Customizable Categories**: Color-coded categories with income/expense types
 - 🏗️ **Clean Architecture**: MVVM pattern with clear separation of concerns
-- 🔧 **Zero Setup**: Builds with 0 errors and 0 warnings out of the box
-- 🧪 **Testing Ready**: Protocol-based services make testing easy
-- 🚀 **Production Ready**: Environment switching, error handling, state management
-- 📱 **Scalable**: Works for simple apps to complex enterprise solutions
-- 🔄 **Reusable**: Use this foundation for all your iOS projects
+- 🔧 **Production Ready**: Error handling, validation, and state management
+- 📱 **Modern UI**: Beautiful SwiftUI interface with smooth animations
 
 ## 🏗️ Architecture Overview
 
@@ -22,11 +25,12 @@ This project follows **MVVM (Model-View-ViewModel)** architecture with dependenc
 
 ```
 Chek3/
-├── App/           # App-level configuration and environment setup
-├── Views/         # SwiftUI views (UI layer)
+├── Configuration/ # Supabase configuration and setup
+├── Models/        # Data models (Category, etc.)
+├── Views/         # SwiftUI views (AuthView, AppView, FirstView, CategoryEditSheet)
 ├── ViewModels/    # Business logic and state management
-├── Services/      # External dependencies and protocols
-└── Utilities/     # Helper extensions and utilities
+├── Services/      # Authentication service, CategoryService, and Supabase client
+└── Utilities/     # Validation, error handling, and extensions
 ```
 
 ### **Architecture Benefits:**
@@ -37,164 +41,221 @@ Chek3/
 
 ## 🎯 Key Features
 
-### **🔧 Production-Ready Infrastructure**
-- **Environment Switching**: Automatic Debug/Release configuration
-- **Dependency Injection**: Protocol-based services with environment injection
-- **Error Handling**: Comprehensive `AppError` system with localized descriptions
-- **State Management**: Built-in loading and error states in `BaseViewModel`
+### **🔐 Authentication Features**
+- **User Registration**: Email/password signup with first name and last name
+- **User Login**: Secure authentication with Supabase
+- **Display Name Management**: Automatic combination of first and last names
+- **Session Management**: Automatic token refresh and session handling
+- **Email Verification**: Built-in email confirmation flow
 
-### **🧪 Testing & Development**
-- **Protocol-Based Services**: Easy mocking and testing
-- **Stub Implementations**: Ready-to-use stubs for development
-- **Swift Testing**: Modern testing framework setup
-- **Preview Support**: All views have SwiftUI previews
+### **📊 Category Management Features**
+- **Create Categories**: Add new budget categories with custom colors
+- **Edit Categories**: Modify category properties (name, color, type, default status)
+- **Delete Categories**: Remove categories with swipe-to-delete
+- **Category Types**: Distinguish between income and expense categories
+- **Default Categories**: Mark categories as default for quick access
+- **Color Coding**: Visual category identification with custom colors
 
-### **⚡ Developer Experience**
-- **Clean Architecture**: Scalable and maintainable code structure
-- **Consistent Patterns**: Same patterns across all ViewModels
-- **Async Operations**: `performAsync` helper for consistent state management
-- **Zero Configuration**: Works immediately after cloning
+### **🛡️ Security & Validation**
+- **Input Validation**: Email format and password strength validation
+- **Rate Limiting**: Protection against brute force attacks
+- **Error Sanitization**: User-friendly error messages
+- **Secure Storage**: Token management handled by Supabase SDK
+
+### **🔄 Sync & Offline Features**
+- **Local-First Architecture**: All operations work offline
+- **Automatic Sync**: Changes sync to Supabase when online
+- **Conflict Resolution**: Last-edited timestamp determines sync priority
+- **Pending Operations Queue**: Offline changes queued for later sync
+- **Network Monitoring**: Real-time connectivity status
+- **Sync Status Indicators**: Visual feedback for sync state
+
+### **📱 User Experience**
+- **User Display Name**: Shows current user's full name and email above sync status
+- **Dynamic UI**: Real-time updates for categories and sync status
+- **Smooth Animations**: Elegant transitions between states
+- **Loading States**: Visual feedback during operations
+- **Error Handling**: Clear, actionable error messages
+- **Offline Support**: Full functionality without internet connection
 
 ## 🚀 Quick Start
 
-### **1. Clone and Setup**
+### **1. Setup Supabase**
+- Create a new Supabase project at [supabase.com](https://supabase.com)
+- Copy your project URL and anon key
+- Update `Configuration/SupabaseConfig.swift` with your credentials
+
+### **2. Clone and Build**
 ```bash
 git clone <your-repo-url>
 cd Chek3
 open Chek3.xcodeproj
 ```
 
-### **2. Build and Run**
+### **3. Run the App**
 - Select your target device/simulator
 - Press `Cmd + R` to build and run
-- ✅ **Builds with 0 errors and 0 warnings**
+- ✅ **Ready to test authentication features**
 
-### **3. Start Building Features**
-- Add new views to `Views/` folder
-- Create ViewModels that inherit from `BaseViewModel`
-- Add service protocols to `Services/Protocols.swift`
-- Replace stubs with real implementations in production environment
+### **4. Test Features**
+- **Sign Up**: Create a new account with first name and last name
+- **Sign In**: Login with existing credentials
+- **Manage Categories**: Create, edit, and delete budget categories
+- **Test Offline**: Turn off internet and verify offline functionality
+- **Sync Status**: Monitor sync indicators and connectivity status
 
 ## 📁 Project Structure Deep Dive
 
-### **App Layer** (`App/`)
-- `AppEnvironment.swift` - Environment configuration with Debug/Release switching
-- `EnvironmentKeys.swift` - SwiftUI environment key setup for dependency injection
+### **Configuration Layer** (`Configuration/`)
+- `SupabaseConfig.swift` - Supabase client configuration and credentials
+
+### **Models Layer** (`Models/`)
+- `Category.swift` - Category data model with Supabase schema alignment
 
 ### **Views Layer** (`Views/`)
-- `AppView.swift` - Main app view with navigation stack
-- `FirstView.swift` - Example view (replace with your content)
+- `AppView.swift` - Main app view with authentication state management
+- `AuthView.swift` - Complete authentication interface (signup/signin)
+- `FirstView.swift` - Category management dashboard with sync status
+- `CategoryEditSheet.swift` - Category creation and editing interface
+- `CategoryRowView.swift` - Individual category list item component
 
 ### **ViewModels Layer** (`ViewModels/`)
-- `Base/ViewModel.swift` - Base protocol and class with state management
-- `AppViewModel.swift` - App-level ViewModel inheriting from BaseViewModel
+- `AppViewModel.swift` - App-level state management and navigation
 
 ### **Services Layer** (`Services/`)
-- `Protocols.swift` - Service protocols and comprehensive error handling
-- `Stubs.swift` - No-op implementations for development and testing
+- `AuthService.swift` - Complete authentication service with Supabase integration
+- `CategoryService.swift` - Category CRUD operations with local-first sync
+- `SupabaseClient.swift` - Supabase client singleton setup
 
 ### **Utilities Layer** (`Utilities/`)
-- `Extensions/View+Extensions.swift` - SwiftUI view extensions and helpers
+- `ValidationUtils.swift` - Email and password validation with rate limiting
+- `ErrorSanitizer.swift` - User-friendly error message handling
+- `StringExtensions.swift` - String utility extensions
 
-## 🔧 Customization Guide
+## 🔧 How It Works
 
-### **Adding New Services**
-1. **Define Protocol** in `Services/Protocols.swift`:
-```swift
-protocol MyNewService {
-    func doSomething() async throws -> Result
-}
-```
+### **Authentication Flow**
+1. **Sign Up Process**:
+   - User enters email, password, first name, and last name
+   - First name and last name are combined into a display name
+   - Display name is stored as user metadata in Supabase
+   - Email verification is sent (if configured)
 
-2. **Add Stub Implementation** in `Services/Stubs.swift`:
-```swift
-struct MyNewServiceStub: MyNewService {
-    func doSomething() async throws -> Result {
-        // Return mock data for development
-    }
-}
-```
+2. **Sign In Process**:
+   - User enters email and password
+   - Supabase validates credentials
+   - Session is established with automatic token refresh
 
-3. **Update Environment** in `AppEnvironment.swift`:
-```swift
-struct AppEnvironment {
-    let myNewService: MyNewService
-    // ... other services
-}
-```
+3. **User Display**:
+   - `FirstView` observes `AuthService.currentUser`
+   - Category management interface is shown when user is authenticated
+   - Updates automatically when authentication state changes
 
-4. **Configure Environments**:
-```swift
-extension AppEnvironment {
-    static func production() -> AppEnvironment {
-        .init(
-            myNewService: MyNewServiceImplementation(), // Real implementation
-            // ... other services
-        )
-    }
-}
-```
+### **Category Management Flow**
+1. **Category Creation**:
+   - User taps "+" button to create new category
+   - `CategoryEditSheet` opens with form fields
+   - Category is created locally and queued for sync
 
-### **Adding New Views**
-1. **Create View** in `Views/` folder:
-```swift
-struct MyNewView: View {
-    @StateObject private var viewModel = MyNewViewModel()
-    
-    var body: some View {
-        // Your UI here
-    }
-}
-```
+2. **Category Editing**:
+   - User taps on existing category in list
+   - `CategoryEditSheet` opens with pre-filled data
+   - Changes are saved locally and synced to Supabase
 
-2. **Create ViewModel** inheriting from `BaseViewModel`:
-```swift
-@MainActor
-class MyNewViewModel: BaseViewModel {
-    override func onAppear() {
-        // Initialization logic
-    }
-    
-    func performAction() {
-        Task {
-            await performAsync {
-                // Your async operation
-                return try await someService.doSomething()
-            }
-        }
-    }
-}
-```
+3. **Category Deletion**:
+   - User swipes to delete category
+   - Category is removed locally and deletion is queued for sync
 
-### **Environment Configuration**
-- **Debug**: Uses stub implementations (safe for development)
-- **Release**: Uses production implementations (real services)
+4. **Sync Process**:
+   - Local changes are immediately applied to UI
+   - When online, changes sync to Supabase
+   - Conflict resolution uses `lastEdited` timestamp
+   - Offline changes are queued and synced when connection restored
 
-## 🧪 Testing
+### **Key Components**
 
-The project is set up with Swift Testing framework:
+#### **AuthService** (`Services/AuthService.swift`)
+- Singleton service managing authentication state
+- Handles signup, signin, signout, and session management
+- Publishes authentication state for UI updates
+- Includes rate limiting and validation
+
+#### **AuthView** (`Views/AuthView.swift`)
+- Complete authentication interface
+- Toggle between signup and signin modes
+- Name fields appear only during signup
+- Real-time validation and error handling
+
+#### **CategoryService** (`Services/CategoryService.swift`)
+- Singleton service managing category CRUD operations
+- Handles local-first sync with Supabase
+- Manages offline queue and network monitoring
+- Publishes category updates and sync status
+
+#### **FirstView** (`Views/FirstView.swift`)
+- Category management dashboard
+- Displays sync status and connectivity indicators
+- Shows category list with create/edit/delete functionality
+- Updates automatically when categories change
+
+#### **CategoryEditSheet** (`Views/CategoryEditSheet.swift`)
+- Modal sheet for creating and editing categories
+- Form validation and color picker
+- Handles both new category creation and existing category updates
+
+### **Supabase Integration**
+- **User Metadata**: First and last names stored as `full_name`
+- **Category Storage**: Categories stored in `categories` table with user isolation
+- **Session Management**: Automatic token refresh
+- **Error Handling**: User-friendly error messages
+- **Security**: Rate limiting and input validation
+- **Local-First Sync**: Offline support with automatic conflict resolution
+
+## 🧪 Testing the App
+
+### **Manual Testing Steps**
+1. **Test Sign Up**:
+   - Enter valid email, password, first name, and last name
+   - Verify display name is created correctly
+   - Check email verification flow (if enabled)
+
+2. **Test Sign In**:
+   - Use existing credentials to sign in
+   - Verify session persistence across app restarts
+
+3. **Test Category Management**:
+   - Create new categories with different colors and types
+   - Edit existing categories and verify changes persist
+   - Delete categories using swipe gesture
+   - Verify sync status indicators work correctly
+
+4. **Test Offline Functionality**:
+   - Turn off internet connection
+   - Create, edit, and delete categories offline
+   - Turn internet back on and verify sync occurs
+   - Check that pending operations are processed
+
+### **Automated Testing**
+The project includes Swift Testing framework setup for future test implementation:
 
 ```swift
 import Testing
 @testable import Chek3
 
-struct MyTests {
-    @Test func example() async throws {
-        // Write your tests here
-        #expect(true)
+struct AuthTests {
+    @Test func testCategoryCreation() async throws {
+        // Test category creation functionality
     }
     
-    @Test func testViewModel() async throws {
-        let viewModel = MyViewModel()
-        // Test your ViewModel logic
+    @Test func testOfflineSync() async throws {
+        // Test offline operations and sync
+    }
+    
+    @Test func testNameCombination() async throws {
+        // Test firstName + lastName combination
     }
 }
 ```
-
-### **Testing Benefits:**
-- **Protocol-based services** make mocking easy
-- **Stub implementations** for isolated testing
-- **BaseViewModel** provides consistent testing patterns
 
 ## 📱 Platform Support
 
@@ -204,64 +265,85 @@ struct MyTests {
 - **Swift 5.0+**
 - **Xcode 15.0+**
 
-## 🔄 Reusing This Foundation
+## 🔄 Extending the App
 
-This foundation is designed to be **reusable across all your iOS projects**:
+### **Adding New Features:**
+1. **Budget Management**:
+   - Add budget creation and tracking
+   - Implement transaction management
+   - Add budget vs actual comparisons
 
-### **For New Projects:**
-1. **Copy Structure**: Clone this repository
-2. **Rename Project**: Update project name and bundle identifier
-3. **Customize Services**: Add your specific service protocols
-4. **Replace Views**: Replace example views with your actual content
-5. **Add Features**: Build your app using the established patterns
+2. **Enhanced Categories**:
+   - Add category icons and emojis
+   - Implement category hierarchies
+   - Add category templates
 
-### **Benefits of Reuse:**
-- ⏱️ **Save 2-3 hours** of setup time per project
-- 🎯 **Consistent architecture** across all apps
-- 🧪 **Testing patterns** already established
-- 📚 **Documentation** and best practices included
+3. **Advanced Sync**:
+   - Add selective sync options
+   - Implement data export/import
+   - Add sync conflict resolution UI
+
+4. **User Profile Management**:
+   - Add profile editing capabilities
+   - Display user's full name from metadata
+   - Add profile picture upload
+
+### **Database Integration:**
+- Extend Supabase with budgets and transactions tables
+- Add user preferences and settings
+- Implement advanced data synchronization
 
 ## 📋 Best Practices
 
 ### **✅ Do:**
-- Use `BaseViewModel` for all ViewModels
-- Use `performAsync` for async operations
-- Add services as protocols first, then implementations
-- Keep views simple and focused on UI
-- Use environment injection for dependencies
-- Handle errors consistently with `AppError`
+- Keep authentication logic in `AuthService`
+- Keep category logic in `CategoryService`
+- Use `@StateObject` for service singletons
+- Handle state changes reactively
+- Validate user input before API calls
+- Provide clear error messages to users
+- Use SwiftUI's declarative syntax
+- Implement local-first architecture
+- Handle offline scenarios gracefully
 
 ### **❌ Don't:**
-- Put business logic in views
-- Create ViewModels without inheriting from `BaseViewModel`
-- Hardcode service implementations
-- Skip error handling
-- Mix UI and business logic
+- Put business logic directly in views
+- Hardcode Supabase credentials in code
+- Skip input validation
+- Ignore error states in UI
+- Mix different concerns in single services
+- Store sensitive data in UserDefaults
+- Block UI during sync operations
+- Ignore offline scenarios
 
 ## 🔒 Security & Privacy
 
-- **Sensitive files** are automatically ignored via `.gitignore`
-- **API keys and credentials** should be added to ignored files
-- **Environment variables** recommended for sensitive configuration
-- **No sensitive data** in the repository
+- **Supabase credentials** stored in `SupabaseConfig.swift`
+- **API keys** should be added to ignored files for production
+- **User data** handled securely through Supabase
+- **No sensitive data** committed to repository
+- **Rate limiting** prevents brute force attacks
 
 ## 🛠️ Development Workflow
 
 ### **Daily Development:**
-1. **Create new features** using established patterns
-2. **Add tests** for new functionality
-3. **Use stubs** for development and testing
-4. **Replace stubs** with real implementations when ready
+1. **Test authentication flows** on simulator
+2. **Test category management** functionality
+3. **Verify offline sync** behavior
+4. **Check error handling** with invalid inputs
+5. **Test session persistence** across app restarts
 
 ### **Before Production:**
-1. **Update environment** to use production services
-2. **Run full test suite**
-3. **Verify error handling**
-4. **Test on real devices**
+1. **Update Supabase config** with production credentials
+2. **Test on real devices**
+3. **Verify email verification** works correctly
+4. **Test offline scenarios** thoroughly
+5. **Check rate limiting** and security measures
+6. **Verify sync conflict resolution**
 
 ## 📄 License
 
-This starting ground is free to use for personal and commercial projects. Choose the license that fits your needs:
+This project is free to use for personal and commercial projects. Choose the license that fits your needs:
 
 - **MIT License**: Permissive, allows commercial use
 - **Apache 2.0**: Permissive with patent protection
@@ -274,15 +356,17 @@ Contributions are welcome! Here's how you can help:
 1. **Fork the repository**
 2. **Create a feature branch**
 3. **Make your changes**
-4. **Add tests** for new functionality
+4. **Test authentication flows**
 5. **Submit a pull request**
 
 ### **Areas for Contribution:**
-- Additional service protocols
-- More utility extensions
-- Testing improvements
-- Documentation enhancements
-- Architecture refinements
+- Additional authentication methods
+- Enhanced category management features
+- Budget and transaction management
+- Advanced sync features
+- UI/UX improvements
+- Testing enhancements
+- Documentation improvements
 
 ## 📞 Support
 
@@ -292,12 +376,12 @@ Contributions are welcome! Here's how you can help:
 
 ---
 
-## 🎉 Happy Coding!
+## 🎉 Ready to Use!
 
-This foundation will save you hours of setup time and provide a solid, scalable architecture for all your iOS projects. 
+This budget management app provides a solid foundation for iOS apps requiring user authentication and data management with offline support.
 
-**Start building amazing apps today!** 🚀
+**Start building your budget management iOS app today!** 🚀
 
 ---
 
-*Built with ❤️ for the iOS development community*
+*Built with ❤️ using SwiftUI and Supabase*

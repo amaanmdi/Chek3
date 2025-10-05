@@ -6,15 +6,16 @@
 //
 
 import Foundation
+import Combine
 
 @MainActor
-class AppViewModel: BaseViewModel {
+class AppViewModel: ObservableObject {
     
-    override func onAppear() {
+    func onAppear() {
         // App initialization logic goes here
     }
     
-    override func onDisappear() {
+    func onDisappear() {
         // App cleanup logic goes here
     }
 }

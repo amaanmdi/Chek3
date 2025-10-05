@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		73CB44022E91BF5200C28C4A /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = 73CB44012E91BF5200C28C4A /* Supabase */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		73CB43C22E91B79700C28C4A /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -52,6 +56,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				73CB44022E91BF5200C28C4A /* Supabase in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -112,6 +117,7 @@
 			);
 			name = Chek3;
 			packageProductDependencies = (
+				73CB44012E91BF5200C28C4A /* Supabase */,
 			);
 			productName = Chek3;
 			productReference = 73CB43AF2E91B79600C28C4A /* Chek3.app */;
@@ -195,6 +201,9 @@
 			);
 			mainGroup = 73CB43A62E91B79600C28C4A;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				73CB44002E91BF5200C28C4A /* XCRemoteSwiftPackageReference "supabase-swift" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 73CB43B02E91B79600C28C4A /* Products */;
 			projectDirPath = "";
@@ -578,6 +587,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		73CB44002E91BF5200C28C4A /* XCRemoteSwiftPackageReference "supabase-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/supabase/supabase-swift";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.5.1;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		73CB44012E91BF5200C28C4A /* Supabase */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 73CB44002E91BF5200C28C4A /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Supabase;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 73CB43A72E91B79600C28C4A /* Project object */;
 }

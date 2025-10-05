@@ -9,18 +9,9 @@ import SwiftUI
 
 @main
 struct Chek3App: App {
-    private let env: AppEnvironment = {
-        #if DEBUG
-        return .stub()
-        #else
-        return .production()
-        #endif
-    }()
-
     var body: some Scene {
         WindowGroup {
             AppView()
-                .environment(\.appEnv, env)
         }
     }
 }
