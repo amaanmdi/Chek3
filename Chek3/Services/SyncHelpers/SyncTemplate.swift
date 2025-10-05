@@ -101,8 +101,6 @@ class EntityConflictResolver {
             switch operation {
             case .create(let entity), .update(let entity):
                 return entity.id == localEntity.id
-            case .delete(let id, _):
-                return id == localEntity.id
             }
         }
         
@@ -199,9 +197,6 @@ class EntitySyncService: ObservableObject {
         // Implementation follows same pattern as syncUpdateCategory
     }
     
-    func syncDeleteEntity(id: UUID, for userID: UUID) async {
-        // Implementation follows same pattern as syncDeleteCategory
-    }
     
     // ... all other methods follow the same pattern
 }

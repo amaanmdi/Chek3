@@ -12,7 +12,6 @@ protocol CategoryRepository {
     func fetchCategories(for userID: UUID) async throws -> [Category]
     func createCategory(_ category: Category) async throws -> Category
     func updateCategory(_ category: Category, for userID: UUID) async throws -> Category
-    func deleteCategory(id: UUID, for userID: UUID) async throws
 }
 
 class SupabaseCategoryRepository: CategoryRepository {
@@ -49,12 +48,4 @@ class SupabaseCategoryRepository: CategoryRepository {
             .value
     }
     
-    func deleteCategory(id: UUID, for userID: UUID) async throws {
-        try await supabase
-            .from("categories")
-            .delete()
-            .eq("id", value: id)
-            .eq("user_id", value: userID)
-            .execute()
-    }
 }

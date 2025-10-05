@@ -13,8 +13,6 @@ struct MonthView: View {
     @StateObject private var categoryViewModel = CategoryViewModel()
     @State private var showingCategorySheet = false
     @State private var selectedCategory: Category?
-    @State private var showingDeleteConfirmation = false
-    @State private var categoryToDelete: Category?
     
     var body: some View {
         NavigationView {
@@ -27,7 +25,10 @@ struct MonthView: View {
                 // Sync Status Indicator
                 SyncStatusView(
                     syncStatus: categoryViewModel.syncStatus,
-                    isOnline: categoryViewModel.isOnline
+                    isOnline: categoryViewModel.isOnline,
+                    onRetryTap: {
+                        categoryViewModel.syncFromRemote()
+                    }
                 )
                 
                 // Categories List
@@ -65,25 +66,6 @@ struct MonthView: View {
                     selectedCategory = nil
                 }
             }
-            .confirmationDialog(
-                "Delete Category",
-                isPresented: $showingDeleteConfirmation,
-                titleVisibility: .visible
-            ) {
-                Button("Delete", role: .destructive) {
-                    if let category = categoryToDelete {
-                        categoryViewModel.deleteCategory(category)
-                    }
-                    categoryToDelete = nil
-                }
-                Button("Cancel", role: .cancel) {
-                    categoryToDelete = nil
-                }
-            } message: {
-                if let category = categoryToDelete {
-                    Text("Are you sure you want to delete '\(category.name)'? This action cannot be undone.")
-                }
-            }
             .onAppear {
                 // Data loading is now handled automatically by CategoryService
                 // when user authentication state changes
@@ -117,7 +99,7 @@ struct MonthView: View {
     
     private var categoriesListView: some View {
         List {
-            ForEach(categoryViewModel.categories) { category in
+            ForEach(categoryViewModel.categories.filter { !$0.isDeleted }) { category in
                 CategoryRowView(category: category) {
                     // Ensure selectedCategory is properly set before showing sheet
                     selectedCategory = category
@@ -148,11 +130,26 @@ struct MonthView: View {
     }
     
     private func deleteCategories(offsets: IndexSet) {
-        // For now, only allow deleting one category at a time for better UX
+        // For now, only allow soft deleting one category at a time for better UX
         if let index = offsets.first {
             let category = categoryViewModel.categories[index]
-            categoryToDelete = category
-            showingDeleteConfirmation = true
+            
+            // Toggle the isDeleted property
+            let updatedCategory = Category(
+                id: category.id,
+                userID: category.userID,
+                name: category.name,
+                income: category.income,
+                color: category.color,
+                isDefault: category.isDefault,
+                createdDate: category.createdDate,
+                lastEdited: Date(),
+                syncedAt: category.syncedAt,
+                isDeleted: !category.isDeleted,
+                deletedAt: !category.isDeleted ? Date() : category.deletedAt
+            )
+            
+            categoryViewModel.updateCategory(updatedCategory)
         }
     }
 }

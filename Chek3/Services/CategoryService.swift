@@ -41,6 +41,13 @@ class CategoryService: ObservableObject {
         // Bind sync status
         syncService.$syncStatus
             .assign(to: &$syncStatus)
+        
+        // Listen for sync data updates to immediately refresh UI
+        NotificationCenter.default.publisher(for: .syncDataUpdated)
+            .sink { [weak self] _ in
+                self?.loadLocalCategories()
+            }
+            .store(in: &cancellables)
     }
     
     
@@ -93,7 +100,9 @@ class CategoryService: ObservableObject {
                 isDefault: false, // User-created categories are always default = false
                 createdDate: category.createdDate,
                 lastEdited: category.lastEdited,
-                syncedAt: category.syncedAt
+                syncedAt: category.syncedAt,
+                isDeleted: category.isDeleted,
+                deletedAt: category.deletedAt
             )
         }
         
@@ -103,6 +112,10 @@ class CategoryService: ObservableObject {
         let userID = getCurrentUserID()
         Task {
             await syncService.syncCreateCategory(finalCategory, for: userID)
+            // Update sync status after operation
+            await MainActor.run {
+                syncService.updateSyncStatus()
+            }
         }
     }
     
@@ -148,7 +161,9 @@ class CategoryService: ObservableObject {
                     isDefault: existingCategory.isDefault, // Preserve original default status
                     createdDate: category.createdDate,
                     lastEdited: Date(),
-                    syncedAt: category.syncedAt
+                    syncedAt: category.syncedAt,
+                    isDeleted: existingCategory.isDeleted, // Preserve original deletion status
+                    deletedAt: existingCategory.deletedAt // Preserve original deletion timestamp
                 )
             } else {
                 // For user-created categories, allow all changes except default status
@@ -161,7 +176,9 @@ class CategoryService: ObservableObject {
                     isDefault: false, // User-created categories are always default = false
                     createdDate: category.createdDate,
                     lastEdited: Date(),
-                    syncedAt: category.syncedAt
+                    syncedAt: category.syncedAt,
+                    isDeleted: category.isDeleted,
+                    deletedAt: category.deletedAt
                 )
             }
             
@@ -171,37 +188,14 @@ class CategoryService: ObservableObject {
             let userID = getCurrentUserID()
             Task {
                 await syncService.syncUpdateCategory(finalCategory, for: userID)
+                // Update sync status after operation
+                await MainActor.run {
+                    syncService.updateSyncStatus()
+                }
             }
         }
     }
     
-    func deleteCategory(id: UUID) {
-        // Validate user ownership before deletion
-        guard let currentUser = AuthService.shared.currentUser,
-              let categoryToDelete = categories.first(where: { $0.id == id }),
-              categoryToDelete.userID == currentUser.id else {
-            #if DEBUG
-            print("⚠️ Security Warning: Attempted to delete category not owned by current user")
-            #endif
-            return
-        }
-        
-        // Prevent deletion of system default categories
-        if categoryToDelete.isSystemDefault {
-            #if DEBUG
-            print("⚠️ Attempted to delete system default category: \(categoryToDelete.name)")
-            #endif
-            return
-        }
-        
-        categories.removeAll { $0.id == id }
-        saveLocalCategories()
-        
-        let userID = getCurrentUserID()
-        Task {
-            await syncService.syncDeleteCategory(id: id, for: userID)
-        }
-    }
     
     // MARK: - Remote Sync
     
@@ -212,6 +206,8 @@ class CategoryService: ObservableObject {
             // Update local categories after sync to ensure UI shows latest data
             await MainActor.run {
                 loadLocalCategories()
+                // Update sync status to reflect current state
+                syncService.updateSyncStatus()
                 #if DEBUG
                 print("🔄 CategoryService: Refreshed local categories after sync - \(categories.count) categories")
                 #endif
@@ -228,6 +224,18 @@ class CategoryService: ObservableObject {
         #endif
         
         syncFromRemote()
+        // Note: syncFromRemote() already calls updateSyncStatus() internally
+    }
+    
+    /// Manually update sync status
+    func updateSyncStatus() {
+        syncService.updateSyncStatus()
+    }
+    
+    /// Clear all pending operations (for debugging)
+    func clearPendingOperations() {
+        guard let currentUser = AuthService.shared.currentUser else { return }
+        syncService.clearPendingOperations(for: currentUser.id)
     }
     
     // MARK: - User Data Management
@@ -246,29 +254,13 @@ class CategoryService: ObservableObject {
         syncService.loadUserData(for: userID)
         loadLocalCategories()
         
+        // Update sync status after loading data
+        syncService.updateSyncStatus()
+        
         // Sync from remote if online (syncService.loadUserData handles initial sync status)
         if isOnline {
             syncFromRemote()
         }
     }
     
-    /// Delete a category with confirmation
-    func deleteCategory(_ category: Category) {
-        // Prevent deletion of system default categories
-        if category.isSystemDefault {
-            #if DEBUG
-            print("⚠️ Attempted to delete system default category: \(category.name)")
-            #endif
-            return
-        }
-        
-        // Remove from local array immediately
-        categories.removeAll { $0.id == category.id }
-        saveLocalCategories()
-        
-        let userID = getCurrentUserID()
-        Task {
-            await syncService.syncDeleteCategory(id: category.id, for: userID)
-        }
-    }
 }

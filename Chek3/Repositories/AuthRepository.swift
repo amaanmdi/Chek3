@@ -63,6 +63,14 @@ class SupabaseAuthRepository: AuthRepository {
     }
     
     func validateUserExists(userID: UUID) async throws -> Bool {
+        // Check if we're offline first
+        guard NetworkMonitorService.shared.isOnline else {
+            #if DEBUG
+            print("🔍 AuthRepository: Offline - assuming user \(userID) exists")
+            #endif
+            return true // Assume user exists when offline
+        }
+        
         // Try to refresh the session - this will fail if the user account has been deleted
         // or if the session is invalid
         do {
@@ -70,7 +78,19 @@ class SupabaseAuthRepository: AuthRepository {
             // If we can refresh the session, the user still exists
             return session.user.id == userID
         } catch {
-            // If refresh fails, the user account likely doesn't exist or is invalid
+            // Check if this is a network error vs an actual account issue
+            let errorString = error.localizedDescription.lowercased()
+            if errorString.contains("network") || 
+               errorString.contains("connection") || 
+               errorString.contains("timeout") ||
+               errorString.contains("offline") {
+                #if DEBUG
+                print("🔍 AuthRepository: Network error during validation - assuming user \(userID) exists: \(error)")
+                #endif
+                return true // Assume user exists on network errors
+            }
+            
+            // If refresh fails due to actual account issues, the user account likely doesn't exist or is invalid
             #if DEBUG
             print("🔍 AuthRepository: Session refresh failed for user \(userID): \(error)")
             #endif

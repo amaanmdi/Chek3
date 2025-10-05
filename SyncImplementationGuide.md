@@ -59,7 +59,6 @@ class SyncService: ObservableObject {
 class SyncCoordinator {
     func syncCreateCategory(_ category: Category, for userID: UUID) async -> Category?
     func syncUpdateCategory(_ category: Category, for userID: UUID) async -> Category?
-    func syncDeleteCategory(id: UUID, for userID: UUID) async -> Bool
     func fetchRemoteCategories(for userID: UUID) async -> [Category]?
 }
 ```
@@ -130,7 +129,6 @@ struct Entity: Codable, Identifiable, Equatable {
 enum PendingOperation: Codable, Equatable {
     case create(Entity)
     case update(Entity)  
-    case delete(UUID, userID: UUID)
 }
 ```
 
