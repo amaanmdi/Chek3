@@ -123,9 +123,17 @@ open Chek3.xcodeproj
 - `AppViewModel.swift` - App-level state management and navigation
 
 ### **Services Layer** (`Services/`)
-- `AuthService.swift` - Complete authentication service with Supabase integration
-- `CategoryService.swift` - Category CRUD operations with local-first sync
+- `AuthService.swift` - Authentication business logic and coordination
+- `CategoryService.swift` - Category business logic and coordination
+- `NetworkMonitorService.swift` - Network connectivity monitoring
+- `LocalStorageService.swift` - Local data persistence management
+- `SyncService.swift` - Data synchronization logic
+- `SessionManager.swift` - Session lifecycle management
 - `SupabaseClient.swift` - Supabase client singleton setup
+
+### **Repositories Layer** (`Repositories/`)
+- `AuthRepository.swift` - Authentication data access abstraction with Supabase integration
+- `CategoryRepository.swift` - Category data access abstraction with Supabase integration
 
 ### **Utilities Layer** (`Utilities/`)
 - `ValidationUtils.swift` - Email and password validation with rate limiting

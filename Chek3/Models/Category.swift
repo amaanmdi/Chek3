@@ -75,7 +75,7 @@ struct ColorData: Codable, Equatable {
 enum PendingOperation: Codable, Equatable {
     case create(Category)
     case update(Category)
-    case delete(UUID)
+    case delete(UUID, userID: UUID)
 }
 
 // Sync status

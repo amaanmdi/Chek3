@@ -22,43 +22,36 @@ class AuthService: ObservableObject {
     @Published var isEmailVerified = false
     
     // MARK: - Private Properties
-    private let supabase = SupabaseClient.shared.client
-    private var sessionRefreshTimer: Timer?
+    private let authRepository: AuthRepository
+    private let sessionManager: SessionManager
+    private var cancellables = Set<AnyCancellable>()
     
     // MARK: - Initialization
     private init() {
         #if DEBUG
         print("🔐 AuthService: Initializing AuthService")
         #endif
-        setupSessionRefresh()
+        self.authRepository = SupabaseAuthRepository()
+        self.sessionManager = SessionManager.shared
+        
+        setupBindings()
         checkAuthStatus()
     }
     
-    // MARK: - Session Management
-    private func setupSessionRefresh() {
-        // Refresh session every 50 minutes (tokens expire after 1 hour)
-        sessionRefreshTimer = Timer.scheduledTimer(withTimeInterval: AppConstants.Auth.sessionRefreshInterval, repeats: true) { [weak self] _ in
-            Task.detached { @MainActor in
-                await self?.refreshSessionIfNeeded()
-            }
-        }
-    }
+    // MARK: - Setup and Bindings
     
-    private func refreshSessionIfNeeded() async {
-        guard isAuthenticated else { return }
+    private func setupBindings() {
+        // Bind session manager state to auth service state
+        sessionManager.$isSessionValid
+            .assign(to: &$isAuthenticated)
         
-        do {
-            let _ = try await supabase.auth.session
-            // Session is automatically refreshed by Supabase if needed
-            #if DEBUG
-            print("🔄 AuthService: Session refreshed successfully")
-            #endif
-        } catch {
-            #if DEBUG
-            print("❌ AuthService: Session refresh failed - \(error.localizedDescription)")
-            #endif
-            await signOut()
-        }
+        sessionManager.$currentSession
+            .map { $0?.user }
+            .assign(to: &$currentUser)
+        
+        sessionManager.$currentSession
+            .map { $0?.user.emailConfirmedAt != nil }
+            .assign(to: &$isEmailVerified)
     }
     
     // MARK: - Authentication Status
@@ -67,30 +60,43 @@ class AuthService: ObservableObject {
         print("🔍 AuthService: Checking authentication status...")
         #endif
         Task {
-            do {
-                let session = try await supabase.auth.session
-                await MainActor.run {
-                    isAuthenticated = true
-                    currentUser = session.user
-                    isEmailVerified = session.user.emailConfirmedAt != nil
-                    
-                    // Load user data
-                    CategoryService.shared.loadUserData()
-                }
+            await sessionManager.checkSessionStatus()
+            
+            if sessionManager.isSessionValid {
+                // Load user data
+                CategoryService.shared.loadUserData()
                 #if DEBUG
-                print("✅ AuthService: User is authenticated - User ID: \(session.user.id)")
+                print("✅ AuthService: User is authenticated - User ID: \(sessionManager.currentSession?.user.id.uuidString ?? "unknown")")
                 #endif
-            } catch {
-                await MainActor.run {
-                    isAuthenticated = false
-                    currentUser = nil
-                    isEmailVerified = false
-                }
+            } else {
                 #if DEBUG
-                print("❌ AuthService: No valid session found - \(error.localizedDescription)")
+                print("❌ AuthService: No valid session found")
                 #endif
             }
         }
+    }
+    
+    // MARK: - Validation Helpers
+    
+    private func validateCredentials(email: String, password: String) async -> (email: String, password: String)? {
+        // Validate inputs
+        let emailValidation = ValidationUtils.validateEmail(email)
+        guard emailValidation.isValid, let validEmail = emailValidation.value else {
+            await MainActor.run {
+                errorMessage = emailValidation.errorMessage
+            }
+            return nil
+        }
+        
+        let passwordValidation = ValidationUtils.validatePassword(password)
+        guard passwordValidation.isValid, let validPassword = passwordValidation.value else {
+            await MainActor.run {
+                errorMessage = passwordValidation.errorMessage
+            }
+            return nil
+        }
+        
+        return (validEmail, validPassword)
     }
     
     // MARK: - Sign Up
@@ -100,21 +106,11 @@ class AuthService: ObservableObject {
         #endif
         
         // Validate inputs
-        let emailValidation = ValidationUtils.validateEmail(email)
-        guard emailValidation.isValid, let validEmail = emailValidation.value else {
-            await MainActor.run {
-                errorMessage = emailValidation.errorMessage
-            }
+        guard let credentials = await validateCredentials(email: email, password: password) else {
             return
         }
-        
-        let passwordValidation = ValidationUtils.validatePassword(password)
-        guard passwordValidation.isValid, let validPassword = passwordValidation.value else {
-            await MainActor.run {
-                errorMessage = passwordValidation.errorMessage
-            }
-            return
-        }
+        let validEmail = credentials.email
+        let validPassword = credentials.password
         
         
         await MainActor.run {
@@ -129,10 +125,11 @@ class AuthService: ObservableObject {
                 .filter { !$0.isEmpty }
                 .joined(separator: " ")
             
-            let response = try await supabase.auth.signUp(
+            let metadata = displayName.isEmpty ? nil : ["full_name": displayName]
+            let response = try await authRepository.signUp(
                 email: validEmail,
                 password: validPassword,
-                data: displayName.isEmpty ? nil : ["full_name": .string(displayName)]
+                metadata: metadata
             )
             
             #if DEBUG
@@ -146,13 +143,16 @@ class AuthService: ObservableObject {
                 if response.user.emailConfirmedAt == nil {
                     errorMessage = "Please check your email and confirm your account before signing in."
                     isEmailVerified = false
-                } else {
-                    isAuthenticated = true
-                    currentUser = response.user
+                } else if let session = response.session {
+                    sessionManager.setSession(session)
                     isEmailVerified = true
                     
                     // Load user data
                     CategoryService.shared.loadUserData()
+                } else {
+                    // This shouldn't happen for confirmed users, but handle gracefully
+                    errorMessage = "Account created but unable to establish session. Please try signing in."
+                    isEmailVerified = false
                 }
                 isLoading = false
             }
@@ -180,21 +180,11 @@ class AuthService: ObservableObject {
         #endif
         
         // Validate inputs
-        let emailValidation = ValidationUtils.validateEmail(email)
-        guard emailValidation.isValid, let validEmail = emailValidation.value else {
-            await MainActor.run {
-                errorMessage = emailValidation.errorMessage
-            }
+        guard let credentials = await validateCredentials(email: email, password: password) else {
             return
         }
-        
-        let passwordValidation = ValidationUtils.validatePassword(password)
-        guard passwordValidation.isValid, let validPassword = passwordValidation.value else {
-            await MainActor.run {
-                errorMessage = passwordValidation.errorMessage
-            }
-            return
-        }
+        let validEmail = credentials.email
+        let validPassword = credentials.password
         
         
         await MainActor.run {
@@ -203,19 +193,22 @@ class AuthService: ObservableObject {
         }
         
         do {
-            let response = try await supabase.auth.signIn(
+            let response = try await authRepository.signIn(
                 email: validEmail,
                 password: validPassword
             )
             
             await MainActor.run {
-                isAuthenticated = true
-                currentUser = response.user
-                isEmailVerified = response.user.emailConfirmedAt != nil
-                isLoading = false
-                
-                // Load user data
-                CategoryService.shared.loadUserData()
+                if let session = response.session {
+                    sessionManager.setSession(session)
+                    isLoading = false
+                    
+                    // Load user data
+                    CategoryService.shared.loadUserData()
+                } else {
+                    errorMessage = "Unable to establish session. Please try again."
+                    isLoading = false
+                }
             }
             
             #if DEBUG
@@ -258,14 +251,10 @@ class AuthService: ObservableObject {
         }
         
         do {
-            try await supabase.auth.signOut()
-            sessionRefreshTimer?.invalidate()
-            sessionRefreshTimer = nil
+            try await authRepository.signOut()
+            await sessionManager.invalidateSession()
             
             await MainActor.run {
-                isAuthenticated = false
-                currentUser = nil
-                isEmailVerified = false
                 isLoading = false
                 
                 // Clear all user-specific data
@@ -293,10 +282,7 @@ class AuthService: ObservableObject {
               let email = currentUser.email else { return }
         
         do {
-            try await supabase.auth.resend(
-                email: email,
-                type: .signup
-            )
+            try await authRepository.resendVerification(email: email)
             await MainActor.run {
                 errorMessage = "Verification email sent. Please check your inbox."
             }
@@ -306,14 +292,5 @@ class AuthService: ObservableObject {
             }
             ErrorSanitizer.logError(error, context: "resendEmailVerification")
         }
-    }
-    
-    // MARK: - Deinitializer
-    deinit {
-        sessionRefreshTimer?.invalidate()
-        sessionRefreshTimer = nil
-        #if DEBUG
-        print("🔐 AuthService: Deinitialized")
-        #endif
     }
 }
