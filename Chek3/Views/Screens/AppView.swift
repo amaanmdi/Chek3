@@ -14,7 +14,7 @@ struct AppView: View {
         Group {
             if authViewModel.isAuthenticated {
                 NavigationStack {
-                    FirstView()
+                    MonthView()
                         .toolbar {
                             ToolbarItem(placement: .navigationBarTrailing) {
                                 Button("Sign Out") {

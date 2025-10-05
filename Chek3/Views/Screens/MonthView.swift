@@ -1,5 +1,5 @@
 //
-//  FirstView.swift
+//  MonthView.swift
 //  Chek3
 //
 //  Created by Amaan Mahdi on 04/10/2025.
@@ -8,7 +8,7 @@
 import SwiftUI
 import Supabase
 
-struct FirstView: View {
+struct MonthView: View {
     @StateObject private var authViewModel = AuthViewModel()
     @StateObject private var categoryViewModel = CategoryViewModel()
     @State private var showingCategorySheet = false
@@ -52,7 +52,7 @@ struct FirstView: View {
                 CategoryEditSheet(category: selectedCategory)
                     .onAppear {
                         #if DEBUG
-                        print("🔧 FirstView: Sheet appeared with category: \(selectedCategory?.name ?? "nil")")
+                        print("🔧 MonthView: Sheet appeared with category: \(selectedCategory?.name ?? "nil")")
                         #endif
                     }
             }
@@ -60,7 +60,7 @@ struct FirstView: View {
                 // Reset selectedCategory when sheet is dismissed
                 if !isPresented {
                     #if DEBUG
-                    print("🔧 FirstView: Sheet dismissed, resetting selectedCategory")
+                    print("🔧 MonthView: Sheet dismissed, resetting selectedCategory")
                     #endif
                     selectedCategory = nil
                 }
@@ -122,13 +122,13 @@ struct FirstView: View {
                     // Ensure selectedCategory is properly set before showing sheet
                     selectedCategory = category
                     #if DEBUG
-                    print("🔧 FirstView: Setting selectedCategory to \(category.name) (ID: \(category.id))")
+                    print("🔧 MonthView: Setting selectedCategory to \(category.name) (ID: \(category.id))")
                     #endif
                     // Add a small delay to ensure state is set before sheet presentation
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                         showingCategorySheet = true
                         #if DEBUG
-                        print("🔧 FirstView: Showing sheet with selectedCategory: \(selectedCategory?.name ?? "nil")")
+                        print("🔧 MonthView: Showing sheet with selectedCategory: \(selectedCategory?.name ?? "nil")")
                         #endif
                     }
                 }
@@ -158,5 +158,5 @@ struct FirstView: View {
 }
 
 #Preview {
-    FirstView()
+    MonthView()
 }

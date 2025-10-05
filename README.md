@@ -121,11 +121,18 @@ open Chek3.xcodeproj
 - `Category.swift` - Category data model with Supabase schema alignment
 
 ### **Views Layer** (`Views/`)
+#### **Screens** (`Views/Screens/`)
 - `AppView.swift` - Main app view with authentication state management
 - `AuthView.swift` - Complete authentication interface (signup/signin)
-- `FirstView.swift` - Category management dashboard with sync status
-- `CategoryEditSheet.swift` - Category creation and editing interface
+- `MonthView.swift` - Category management dashboard with sync status
+
+#### **Components** (`Views/Components/`)
+##### **Design Components** (`Views/Components/DesignComponents/`)
 - `CategoryRowView.swift` - Individual category list item component
+- `SyncStatusView.swift` - Sync status indicator component
+
+##### **Sheets** (`Views/Components/Sheets/`)
+- `CategoryEditSheet.swift` - Category creation and editing interface
 
 ### **ViewModels Layer** (`ViewModels/`)
 - `CategoryViewModel.swift` - Category management and sync state
@@ -171,7 +178,7 @@ open Chek3.xcodeproj
    - Session is established with automatic token refresh
 
 3. **User Display**:
-   - `FirstView` observes `AuthService.currentUser`
+   - `MonthView` observes `AuthService.currentUser`
    - Category management interface is shown when user is authenticated
    - Updates automatically when authentication state changes
 
@@ -251,13 +258,27 @@ open Chek3.xcodeproj
 - Manages offline queue and network monitoring
 - Publishes category updates and sync status
 
-#### **FirstView** (`Views/FirstView.swift`)
+#### **MonthView** (`Views/Screens/MonthView.swift`)
 - Category management dashboard
 - Displays sync status and connectivity indicators
 - Shows category list with create/edit/delete functionality
 - Updates automatically when categories change
 
-#### **CategoryEditSheet** (`Views/CategoryEditSheet.swift`)
+#### **Design Components**
+
+##### **CategoryRowView** (`Views/Components/DesignComponents/CategoryRowView.swift`)
+- Reusable row component for category list items
+- Displays category color, name, type badges, and sync status
+- Handles tap interactions for category editing
+
+##### **SyncStatusView** (`Views/Components/DesignComponents/SyncStatusView.swift`)
+- Reusable sync status indicator component
+- Shows sync state (synced, syncing, pending, error) and online/offline status
+- Used across multiple screens for consistent status display
+
+#### **Sheets**
+
+##### **CategoryEditSheet** (`Views/Components/Sheets/CategoryEditSheet.swift`)
 - Modal sheet for creating and editing categories
 - Form validation and color picker
 - Handles both new category creation and existing category updates
