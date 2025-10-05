@@ -88,7 +88,23 @@ struct CategoryEditSheet: View {
             guard existingCategory.userID == currentUser.id else {
                 // Handle unauthorized access - this should not happen in normal flow
                 // but provides defense in depth
+                #if DEBUG
                 print("⚠️ Security Warning: Attempted to edit category not owned by current user")
+                print("⚠️ Category User ID: \(existingCategory.userID)")
+                print("⚠️ Current User ID: \(currentUser.id)")
+                #endif
+                
+                // Log security incident and dismiss
+                ErrorSanitizer.logError(
+                    NSError(domain: "SecurityError", code: 403, userInfo: [
+                        NSLocalizedDescriptionKey: "Unauthorized category access attempt",
+                        "category_id": existingCategory.id,
+                        "category_user_id": existingCategory.userID,
+                        "current_user_id": currentUser.id
+                    ]),
+                    context: "CategoryEditSheet.saveCategory"
+                )
+                
                 dismiss()
                 return
             }

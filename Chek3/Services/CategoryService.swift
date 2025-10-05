@@ -24,6 +24,12 @@ class CategoryService: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
     private var pendingOperations: [PendingOperation] = []
     
+    // Race condition protection and retry tracking
+    private var isSyncingPendingOperations = false
+    private var operationRetryCount: [String: Int] = [:]
+    private let maxRetries = 3
+    private let syncLock = NSLock()
+    
     private init() {
         setupNetworkMonitoring()
         loadLocalCategories()
@@ -41,26 +47,80 @@ class CategoryService: ObservableObject {
     private func setupNetworkMonitoring() {
         networkMonitor.pathUpdateHandler = { [weak self] path in
             DispatchQueue.main.async {
-                let wasOnline = self?.isOnline ?? false
-                self?.isOnline = path.status == .satisfied
+                guard let self = self else { return }
+                
+                let wasOnline = self.isOnline
+                self.isOnline = path.status == .satisfied
+                
+                #if DEBUG
+                print("🌐 Network status changed: \(wasOnline ? "Online" : "Offline") → \(self.isOnline ? "Online" : "Offline")")
+                #endif
+                
+                // Update sync status immediately based on new connectivity
+                self.updateSyncStatusForNetworkChange(wasOnline: wasOnline)
                 
                 // Only sync if we just came back online and have pending operations
-                if !wasOnline && self?.isOnline == true && !(self?.pendingOperations.isEmpty ?? true) {
-                    self?.syncPendingOperations()
-                }
-                
-                // Update sync status based on connectivity
-                if self?.isOnline == false && !(self?.pendingOperations.isEmpty ?? true) {
-                    self?.syncStatus = .pending
-                } else if self?.isOnline == false {
-                    self?.syncStatus = .synced
+                if !wasOnline && self.isOnline && !self.pendingOperations.isEmpty {
+                    #if DEBUG
+                    print("🔄 Network restored, syncing \(self.pendingOperations.count) pending operations")
+                    #endif
+                    self.syncPendingOperations()
                 }
             }
         }
         networkMonitor.start(queue: networkQueue)
     }
     
+    private func updateSyncStatusForNetworkChange(wasOnline: Bool) {
+        // If we're currently syncing, don't change the status
+        if case .syncing = syncStatus {
+            #if DEBUG
+            print("🔄 Currently syncing, keeping sync status unchanged")
+            #endif
+            return
+        }
+        
+        if isOnline {
+            // Just came online
+            if !pendingOperations.isEmpty {
+                syncStatus = .pending
+                #if DEBUG
+                print("📡 Online with \(pendingOperations.count) pending operations")
+                #endif
+            } else {
+                syncStatus = .synced
+                #if DEBUG
+                print("✅ Online with no pending operations")
+                #endif
+            }
+        } else {
+            // Just went offline
+            if !pendingOperations.isEmpty {
+                syncStatus = .pending
+                #if DEBUG
+                print("📴 Offline with \(pendingOperations.count) pending operations")
+                #endif
+            } else {
+                syncStatus = .synced
+                #if DEBUG
+                print("📴 Offline with no pending operations")
+                #endif
+            }
+        }
+    }
+    
     // MARK: - Local Storage
+    
+    private func operationKey(_ operation: PendingOperation) -> String {
+        switch operation {
+        case .create(let category):
+            return "create_\(category.id.uuidString)"
+        case .update(let category):
+            return "update_\(category.id.uuidString)"
+        case .delete(let id):
+            return "delete_\(id.uuidString)"
+        }
+    }
     
     private func getUserSpecificKey(_ baseKey: String) -> String {
         guard let userId = AuthService.shared.currentUser?.id else {
@@ -112,6 +172,15 @@ class CategoryService: ObservableObject {
     }
     
     func updateCategory(_ category: Category) {
+        // Validate user ownership
+        guard let currentUser = AuthService.shared.currentUser,
+              category.userID == currentUser.id else {
+            #if DEBUG
+            print("⚠️ Security Warning: Attempted to update category not owned by current user")
+            #endif
+            return
+        }
+        
         if let index = categories.firstIndex(where: { $0.id == category.id }) {
             categories[index] = category
             saveLocalCategories()
@@ -133,6 +202,16 @@ class CategoryService: ObservableObject {
     }
     
     func deleteCategory(id: UUID) {
+        // Validate user ownership before deletion
+        guard let currentUser = AuthService.shared.currentUser,
+              let categoryToDelete = categories.first(where: { $0.id == id }),
+              categoryToDelete.userID == currentUser.id else {
+            #if DEBUG
+            print("⚠️ Security Warning: Attempted to delete category not owned by current user")
+            #endif
+            return
+        }
+        
         categories.removeAll { $0.id == id }
         saveLocalCategories()
         
@@ -292,10 +371,16 @@ class CategoryService: ObservableObject {
         }
     }
     
-    // MARK: - Async Sync Methods for Pending Operations
+    // MARK: - Pending Operations Sync Methods (Return Success Status)
     
-    private func syncCreateCategoryAsync(_ category: Category) async {
-        guard AuthService.shared.currentUser != nil else { return }
+    private func syncCreateCategoryForPending(_ category: Category) async -> Bool {
+        guard isOnline else {
+            return false // Will be retried later
+        }
+        
+        guard AuthService.shared.currentUser != nil else {
+            return false
+        }
         
         do {
             let _: Category = try await supabase
@@ -323,17 +408,29 @@ class CategoryService: ObservableObject {
                     saveLocalCategories()
                 }
             }
+            
+            return true
         } catch {
             await MainActor.run {
-                // Re-queue the operation for retry
-                pendingOperations.append(.create(category))
-                saveLocalCategories()
+                // Only update status if we're not already syncing
+                if case .syncing = syncStatus {
+                    // Keep syncing status, error will be handled by retry logic
+                } else {
+                    syncStatus = .error(error.localizedDescription)
+                }
             }
+            return false
         }
     }
     
-    private func syncUpdateCategoryAsync(_ category: Category) async {
-        guard let currentUser = AuthService.shared.currentUser else { return }
+    private func syncUpdateCategoryForPending(_ category: Category) async -> Bool {
+        guard isOnline else {
+            return false // Will be retried later
+        }
+        
+        guard let currentUser = AuthService.shared.currentUser else {
+            return false
+        }
         
         do {
             let _: Category = try await supabase
@@ -363,17 +460,29 @@ class CategoryService: ObservableObject {
                     saveLocalCategories()
                 }
             }
+            
+            return true
         } catch {
             await MainActor.run {
-                // Re-queue the operation for retry
-                pendingOperations.append(.update(category))
-                saveLocalCategories()
+                // Only update status if we're not already syncing
+                if case .syncing = syncStatus {
+                    // Keep syncing status, error will be handled by retry logic
+                } else {
+                    syncStatus = .error(error.localizedDescription)
+                }
             }
+            return false
         }
     }
     
-    private func syncDeleteCategoryAsync(id: UUID) async {
-        guard let currentUser = AuthService.shared.currentUser else { return }
+    private func syncDeleteCategoryForPending(id: UUID) async -> Bool {
+        guard isOnline else {
+            return false // Will be retried later
+        }
+        
+        guard let currentUser = AuthService.shared.currentUser else {
+            return false
+        }
         
         do {
             try await supabase
@@ -383,16 +492,20 @@ class CategoryService: ObservableObject {
                 .eq("user_id", value: currentUser.id)
                 .execute()
             
-            // Success - deletion is complete, no need to update local state
-            // since the category was already removed locally during offline deletion
+            return true
         } catch {
             await MainActor.run {
-                // Re-queue the operation for retry
-                pendingOperations.append(.delete(id))
-                saveLocalCategories()
+                // Only update status if we're not already syncing
+                if case .syncing = syncStatus {
+                    // Keep syncing status, error will be handled by retry logic
+                } else {
+                    syncStatus = .error(error.localizedDescription)
+                }
             }
+            return false
         }
     }
+    
     
     // MARK: - Initial Sync
     
@@ -473,29 +586,98 @@ class CategoryService: ObservableObject {
     // MARK: - Pending Operations Sync
     
     private func syncPendingOperations() {
-        guard isOnline && !pendingOperations.isEmpty else { return }
+        // Prevent concurrent execution using atomic lock
+        syncLock.lock()
+        defer { syncLock.unlock() }
         
-        // Process operations sequentially to avoid race conditions
+        guard !isSyncingPendingOperations && isOnline && !pendingOperations.isEmpty else {
+            return
+        }
+        
+        isSyncingPendingOperations = true
+        syncStatus = .syncing
+        
         Task {
-            let operations = pendingOperations
-            pendingOperations.removeAll()
+            await processPendingOperationsAsync()
+            
             await MainActor.run {
-                saveLocalCategories()
+                isSyncingPendingOperations = false
+            }
+        }
+    }
+
+    private func processPendingOperationsAsync() async {
+        let operations = await MainActor.run { pendingOperations }
+        var successfulOperations: [PendingOperation] = []
+        
+        for operation in operations {
+            let key = operationKey(operation)
+            let retries = operationRetryCount[key] ?? 0
+            
+            // Skip if max retries exceeded
+            guard retries < maxRetries else {
+                print("Max retries exceeded for operation: \(key)")
+                successfulOperations.append(operation) // Remove from queue
+                _ = await MainActor.run {
+                    operationRetryCount.removeValue(forKey: key)
+                }
+                continue
             }
             
-            for operation in operations {
-                switch operation {
-                case .create(let category):
-                    await syncCreateCategoryAsync(category)
-                case .update(let category):
-                    await syncUpdateCategoryAsync(category)
-                case .delete(let id):
-                    await syncDeleteCategoryAsync(id: id)
-                }
-                
-                // Small delay between operations to prevent overwhelming the server
-                try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
+            let success: Bool
+            
+            switch operation {
+            case .create(let category):
+                // Use synchronous version that returns success status
+                success = await syncCreateCategoryForPending(category)
+            case .update(let category):
+                // Use synchronous version that returns success status
+                success = await syncUpdateCategoryForPending(category)
+            case .delete(let id):
+                // Use synchronous version that returns success status
+                success = await syncDeleteCategoryForPending(id: id)
             }
+            
+            if success {
+                successfulOperations.append(operation)
+                _ = await MainActor.run {
+                    operationRetryCount.removeValue(forKey: key)
+                }
+            } else {
+                _ = await MainActor.run {
+                    operationRetryCount[key] = retries + 1
+                }
+            }
+            
+            // Small delay between operations
+            try? await Task.sleep(nanoseconds: 100_000_000)
+        }
+        
+        // Remove successful operations
+        await MainActor.run {
+            pendingOperations.removeAll { operation in
+                successfulOperations.contains { successOp in
+                    operationKey(operation) == operationKey(successOp)
+                }
+            }
+            saveLocalCategories()
+            
+            // Update sync status more accurately
+            if pendingOperations.isEmpty {
+                if isOnline {
+                    syncStatus = .synced
+                } else {
+                    // We're offline but no pending operations, so we're effectively synced
+                    syncStatus = .synced
+                }
+            } else {
+                // Still have pending operations
+                syncStatus = .pending
+            }
+            
+            #if DEBUG
+            print("🔄 Sync completed. Remaining pending: \(pendingOperations.count), Status: \(syncStatus)")
+            #endif
         }
     }
     

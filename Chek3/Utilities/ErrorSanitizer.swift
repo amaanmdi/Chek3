@@ -61,7 +61,7 @@ struct ErrorSanitizer {
         }
         
         if errorMessage.contains("password too short") {
-            return "Password must be at least 6 characters long."
+            return "Password must be at least \(AppConstants.Validation.passwordMinLength) characters long."
         }
         
         if errorMessage.contains("too many requests") || errorMessage.contains("rate limit") {

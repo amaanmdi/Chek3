@@ -25,7 +25,10 @@ struct FirstView: View {
                 }
                 
                 // Sync Status Indicator
-                syncStatusView
+                SyncStatusView(
+                    syncStatus: categoryService.syncStatus,
+                    isOnline: categoryService.isOnline
+                )
                 
                 // Categories List
                 if authService.currentUser != nil {
@@ -111,49 +114,6 @@ struct FirstView: View {
         .background(Color.blue.opacity(0.1))
     }
     
-    private var syncStatusView: some View {
-        HStack {
-            switch categoryService.syncStatus {
-            case .synced:
-                Image(systemName: "checkmark.circle.fill")
-                    .foregroundColor(.green)
-                Text("Synced")
-                    .font(.caption)
-                    .foregroundColor(.green)
-            case .syncing:
-                ProgressView()
-                    .scaleEffect(0.8)
-                Text("Syncing...")
-                    .font(.caption)
-                    .foregroundColor(.blue)
-            case .pending:
-                Image(systemName: "clock.fill")
-                    .foregroundColor(.orange)
-                Text("Pending")
-                    .font(.caption)
-                    .foregroundColor(.orange)
-            case .error(let message):
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .foregroundColor(.red)
-                Text("Error: \(message)")
-                    .font(.caption)
-                    .foregroundColor(.red)
-            }
-            
-            Spacer()
-            
-            if !categoryService.isOnline {
-                Image(systemName: "wifi.slash")
-                    .foregroundColor(.red)
-                Text("Offline")
-                    .font(.caption)
-                    .foregroundColor(.red)
-            }
-        }
-        .padding(.horizontal)
-        .padding(.vertical, 8)
-        .background(Color.gray.opacity(0.1))
-    }
     
     private var categoriesListView: some View {
         List {

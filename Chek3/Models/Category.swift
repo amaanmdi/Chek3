@@ -72,7 +72,7 @@ struct ColorData: Codable, Equatable {
 }
 
 // Pending operation for offline sync
-enum PendingOperation: Codable {
+enum PendingOperation: Codable, Equatable {
     case create(Category)
     case update(Category)
     case delete(UUID)

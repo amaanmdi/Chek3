@@ -124,6 +124,8 @@ APIKeys.swift
 GoogleService-Info.plist
 Config.plist
 Secrets.plist
+Info.plist
+LocalConfig.plist
 .env
 .env.*
 

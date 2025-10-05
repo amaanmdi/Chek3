@@ -37,7 +37,7 @@ class AuthService: ObservableObject {
     // MARK: - Session Management
     private func setupSessionRefresh() {
         // Refresh session every 50 minutes (tokens expire after 1 hour)
-        sessionRefreshTimer = Timer.scheduledTimer(withTimeInterval: 3000, repeats: true) { [weak self] _ in
+        sessionRefreshTimer = Timer.scheduledTimer(withTimeInterval: AppConstants.Auth.sessionRefreshInterval, repeats: true) { [weak self] _ in
             Task.detached { @MainActor in
                 await self?.refreshSessionIfNeeded()
             }
@@ -311,5 +311,9 @@ class AuthService: ObservableObject {
     // MARK: - Deinitializer
     deinit {
         sessionRefreshTimer?.invalidate()
+        sessionRefreshTimer = nil
+        #if DEBUG
+        print("🔐 AuthService: Deinitialized")
+        #endif
     }
 }

@@ -169,7 +169,7 @@ struct AuthView: View {
     }
     
     private func clearErrors() {
-        if !authService.errorMessage.isNilOrEmpty {
+        if let errorMessage = authService.errorMessage, !errorMessage.isEmpty {
             authService.errorMessage = nil
         }
         showEmailError = false

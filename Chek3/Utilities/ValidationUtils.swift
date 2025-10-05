@@ -21,7 +21,7 @@ struct ValidationUtils {
         }
         
         // Quick length check before regex
-        guard email.count > 5 && email.count < 254 else {
+        guard email.count > AppConstants.Validation.emailMinLength && email.count < AppConstants.Validation.emailMaxLength else {
             emailValidationCache[email] = false
             return false
         }
@@ -33,9 +33,9 @@ struct ValidationUtils {
         
         // Cache the result (limit cache size to prevent memory issues)
         emailValidationQueue.async {
-            if emailValidationCache.count > 100 {
+            if emailValidationCache.count > AppConstants.Validation.emailCacheLimit {
                 // Remove oldest entries by creating new dictionary with recent entries
-                let recentEntries = Array(emailValidationCache.suffix(50))
+                let recentEntries = Array(emailValidationCache.suffix(AppConstants.Validation.emailCacheTrimSize))
                 emailValidationCache = Dictionary(uniqueKeysWithValues: recentEntries)
             }
             emailValidationCache[email] = isValid
@@ -55,7 +55,7 @@ struct ValidationUtils {
             return .failure("Please enter a valid email address")
         }
         
-        if trimmedEmail.count > 254 {
+        if trimmedEmail.count > AppConstants.Validation.emailMaxLength {
             return .failure("Email address is too long")
         }
         
@@ -70,11 +70,11 @@ struct ValidationUtils {
             return .failure("Password is required")
         }
         
-        if trimmedPassword.count < 6 {
-            return .failure("Password must be at least 6 characters long")
+        if trimmedPassword.count < AppConstants.Validation.passwordMinLength {
+            return .failure("Password must be at least \(AppConstants.Validation.passwordMinLength) characters long")
         }
         
-        if trimmedPassword.count > 128 {
+        if trimmedPassword.count > AppConstants.Validation.passwordMaxLength {
             return .failure("Password is too long")
         }
         

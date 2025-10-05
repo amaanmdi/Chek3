@@ -8,7 +8,6 @@
 import SwiftUI
 
 struct AppView: View {
-    @StateObject private var viewModel = AppViewModel()
     @StateObject private var authService = AuthService.shared
     
     var body: some View {
@@ -33,7 +32,6 @@ struct AppView: View {
                     #if DEBUG
                     print("👀 AppView: Main app view appeared (user authenticated)")
                     #endif
-                    viewModel.onAppear()
                 }
             } else {
                 AuthView()

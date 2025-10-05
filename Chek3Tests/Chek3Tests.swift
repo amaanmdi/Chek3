@@ -9,9 +9,5 @@ import Testing
 @testable import Chek3
 
 struct Chek3Tests {
-
-    @Test func example() async throws {
-        // Write your test here and use APIs like `#expect(...)` to check expected conditions.
-    }
-
+    // Tests will be added here as the app grows
 }

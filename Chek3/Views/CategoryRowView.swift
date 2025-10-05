@@ -32,7 +32,7 @@ struct CategoryRowView: View {
                         if category.income {
                             Text("Income")
                                 .font(.caption)
-                                .padding(.horizontal, 6)
+                                .padding(.horizontal, AppConstants.UI.smallHorizontalPadding)
                                 .padding(.vertical, 2)
                                 .background(Color.green.opacity(0.2))
                                 .foregroundColor(.green)
@@ -42,7 +42,7 @@ struct CategoryRowView: View {
                         if category.isDefault {
                             Text("Default")
                                 .font(.caption)
-                                .padding(.horizontal, 6)
+                                .padding(.horizontal, AppConstants.UI.smallHorizontalPadding)
                                 .padding(.vertical, 2)
                                 .background(Color.blue.opacity(0.2))
                                 .foregroundColor(.blue)
