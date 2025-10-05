@@ -78,6 +78,7 @@ enum PendingOperation: Codable, Equatable {
     case delete(UUID, userID: UUID)
 }
 
+
 // Sync status
 enum SyncStatus {
     case synced

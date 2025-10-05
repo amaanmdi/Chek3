@@ -8,11 +8,11 @@
 import SwiftUI
 
 struct AppView: View {
-    @StateObject private var authService = AuthService.shared
+    @StateObject private var authViewModel = AuthViewModel()
     
     var body: some View {
         Group {
-            if authService.isAuthenticated {
+            if authViewModel.isAuthenticated {
                 NavigationStack {
                     FirstView()
                         .toolbar {
@@ -22,7 +22,7 @@ struct AppView: View {
                                     print("🚪 AppView: Sign out button tapped")
                                     #endif
                                     Task {
-                                        await authService.signOut()
+                                        await authViewModel.signOut()
                                     }
                                 }
                             }
@@ -42,7 +42,7 @@ struct AppView: View {
                     }
             }
         }
-        .onChange(of: authService.isAuthenticated) { _, isAuthenticated in
+        .onChange(of: authViewModel.isAuthenticated) { _, isAuthenticated in
             #if DEBUG
             print("🔄 AppView: Authentication state changed to: \(isAuthenticated)")
             if isAuthenticated {

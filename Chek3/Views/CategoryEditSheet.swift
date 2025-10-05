@@ -10,8 +10,8 @@ import Supabase
 
 struct CategoryEditSheet: View {
     @Environment(\.dismiss) private var dismiss
-    @StateObject private var categoryService = CategoryService.shared
-    @StateObject private var authService = AuthService.shared
+    @StateObject private var categoryViewModel = CategoryViewModel()
+    @StateObject private var authViewModel = AuthViewModel()
     
     let category: Category?
     @State private var name: String = ""
@@ -74,7 +74,7 @@ struct CategoryEditSheet: View {
     }
     
     private func saveCategory() {
-        guard let currentUser = authService.currentUser else { return }
+        guard let currentUser = authViewModel.currentUser else { return }
         
         let colorData = ColorData(
             red: color.components.red,
@@ -121,7 +121,7 @@ struct CategoryEditSheet: View {
                 lastEdited: Date(),
                 syncedAt: existingCategory.syncedAt
             )
-            categoryService.updateCategory(updatedCategory)
+            categoryViewModel.updateCategory(updatedCategory)
         } else {
             // Create new category
             let newCategory = Category(
@@ -131,7 +131,7 @@ struct CategoryEditSheet: View {
                 color: colorData,
                 isDefault: isDefault
             )
-            categoryService.createCategory(newCategory)
+            categoryViewModel.createCategory(newCategory)
         }
         
         dismiss()

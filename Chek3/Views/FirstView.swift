@@ -9,8 +9,8 @@ import SwiftUI
 import Supabase
 
 struct FirstView: View {
-    @StateObject private var authService = AuthService.shared
-    @StateObject private var categoryService = CategoryService.shared
+    @StateObject private var authViewModel = AuthViewModel()
+    @StateObject private var categoryViewModel = CategoryViewModel()
     @State private var showingCategorySheet = false
     @State private var selectedCategory: Category?
     @State private var showingDeleteConfirmation = false
@@ -20,18 +20,18 @@ struct FirstView: View {
         NavigationView {
             VStack(spacing: 0) {
                 // User Display Name
-                if let currentUser = authService.currentUser {
+                if let currentUser = authViewModel.currentUser {
                     userDisplayNameView(currentUser)
                 }
                 
                 // Sync Status Indicator
                 SyncStatusView(
-                    syncStatus: categoryService.syncStatus,
-                    isOnline: categoryService.isOnline
+                    syncStatus: categoryViewModel.syncStatus,
+                    isOnline: categoryViewModel.isOnline
                 )
                 
                 // Categories List
-                if authService.currentUser != nil {
+                if authViewModel.currentUser != nil {
                     categoriesListView
                 } else {
                     noUserView
@@ -72,7 +72,7 @@ struct FirstView: View {
             ) {
                 Button("Delete", role: .destructive) {
                     if let category = categoryToDelete {
-                        categoryService.deleteCategory(category)
+                        categoryViewModel.deleteCategory(category)
                     }
                     categoryToDelete = nil
                 }
@@ -117,7 +117,7 @@ struct FirstView: View {
     
     private var categoriesListView: some View {
         List {
-            ForEach(categoryService.categories) { category in
+            ForEach(categoryViewModel.categories) { category in
                 CategoryRowView(category: category) {
                     // Ensure selectedCategory is properly set before showing sheet
                     selectedCategory = category
@@ -150,7 +150,7 @@ struct FirstView: View {
     private func deleteCategories(offsets: IndexSet) {
         // For now, only allow deleting one category at a time for better UX
         if let index = offsets.first {
-            let category = categoryService.categories[index]
+            let category = categoryViewModel.categories[index]
             categoryToDelete = category
             showingDeleteConfirmation = true
         }

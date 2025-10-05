@@ -26,10 +26,12 @@ This project follows **MVVM (Model-View-ViewModel)** architecture with dependenc
 ```
 Chek3/
 ├── Configuration/ # Supabase configuration and setup
-├── Models/        # Data models (Category, etc.)
-├── Views/         # SwiftUI views (AuthView, AppView, FirstView, CategoryEditSheet)
-├── ViewModels/    # Business logic and state management
-├── Services/      # Authentication service, CategoryService, and Supabase client
+├── Models/        # Data models (Category, PendingOperation, SyncStatus)
+├── Views/         # SwiftUI views (pure UI logic)
+├── ViewModels/    # ViewModels (View logic, binds to Services)
+├── Services/      # Business logic (AuthService, CategoryService, SyncService)
+│   └── SyncHelpers/ # Internal sync components (ConflictResolver, PendingOperationsManager, SyncCoordinator)
+├── Repositories/  # Data access (CategoryRepository, AuthRepository)
 └── Utilities/     # Validation, error handling, and extensions
 ```
 
@@ -38,6 +40,8 @@ Chek3/
 - **Maintainable**: Clear separation between UI and business logic
 - **Scalable**: Add new features without breaking existing code
 - **Flexible**: Swap implementations without changing views
+- **MVVM Compliant**: Proper separation of concerns with ViewModels as intermediaries
+- **Modular**: SyncService broken down into focused helper classes
 
 ## 🎯 Key Features
 
@@ -120,16 +124,22 @@ open Chek3.xcodeproj
 - `CategoryRowView.swift` - Individual category list item component
 
 ### **ViewModels Layer** (`ViewModels/`)
-- `AppViewModel.swift` - App-level state management and navigation
+- `CategoryViewModel.swift` - Category management and sync state
+- `AuthViewModel.swift` - Authentication state and operations
 
 ### **Services Layer** (`Services/`)
 - `AuthService.swift` - Authentication business logic and coordination
 - `CategoryService.swift` - Category business logic and coordination
 - `NetworkMonitorService.swift` - Network connectivity monitoring
 - `LocalStorageService.swift` - Local data persistence management
-- `SyncService.swift` - Data synchronization logic
+- `SyncService.swift` - Data synchronization logic (refactored with helper classes)
 - `SessionManager.swift` - Session lifecycle management
 - `SupabaseClient.swift` - Supabase client singleton setup
+
+### **SyncHelpers Layer** (`Services/SyncHelpers/`)
+- `ConflictResolver.swift` - Handles merge conflicts between local and remote data
+- `PendingOperationsManager.swift` - Manages offline operation queue and retry logic
+- `SyncCoordinator.swift` - Coordinates individual sync operations with remote server
 
 ### **Repositories Layer** (`Repositories/`)
 - `AuthRepository.swift` - Authentication data access abstraction with Supabase integration
@@ -304,18 +314,22 @@ struct AuthTests {
 ## 📋 Best Practices
 
 ### **✅ Do:**
+- Use ViewModels as intermediaries between Views and Services
 - Keep authentication logic in `AuthService`
 - Keep category logic in `CategoryService`
-- Use `@StateObject` for service singletons
-- Handle state changes reactively
+- Use `@StateObject` for ViewModel instances in Views
+- Handle state changes reactively through Combine bindings
 - Validate user input before API calls
 - Provide clear error messages to users
 - Use SwiftUI's declarative syntax
 - Implement local-first architecture
 - Handle offline scenarios gracefully
+- Break down large services into focused helper classes
+- Keep debug logging minimal and meaningful
 
 ### **❌ Don't:**
 - Put business logic directly in views
+- Use Services directly in Views (use ViewModels instead)
 - Hardcode Supabase credentials in code
 - Skip input validation
 - Ignore error states in UI
@@ -323,6 +337,8 @@ struct AuthTests {
 - Store sensitive data in UserDefaults
 - Block UI during sync operations
 - Ignore offline scenarios
+- Create bloated services with multiple responsibilities
+- Add excessive debug logging
 
 ## 🔒 Security & Privacy
 

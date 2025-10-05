@@ -28,9 +28,6 @@ class AuthService: ObservableObject {
     
     // MARK: - Initialization
     private init() {
-        #if DEBUG
-        print("🔐 AuthService: Initializing AuthService")
-        #endif
         self.authRepository = SupabaseAuthRepository()
         self.sessionManager = SessionManager.shared
         
@@ -56,22 +53,12 @@ class AuthService: ObservableObject {
     
     // MARK: - Authentication Status
     func checkAuthStatus() {
-        #if DEBUG
-        print("🔍 AuthService: Checking authentication status...")
-        #endif
         Task {
             await sessionManager.checkSessionStatus()
             
             if sessionManager.isSessionValid {
                 // Load user data
                 CategoryService.shared.loadUserData()
-                #if DEBUG
-                print("✅ AuthService: User is authenticated - User ID: \(sessionManager.currentSession?.user.id.uuidString ?? "unknown")")
-                #endif
-            } else {
-                #if DEBUG
-                print("❌ AuthService: No valid session found")
-                #endif
             }
         }
     }
@@ -101,9 +88,6 @@ class AuthService: ObservableObject {
     
     // MARK: - Sign Up
     func signUp(email: String, password: String, firstName: String = "", lastName: String = "") async {
-        #if DEBUG
-        print("📝 AuthService: Starting sign up process for email: \(email)")
-        #endif
         
         // Validate inputs
         guard let credentials = await validateCredentials(email: email, password: password) else {
@@ -132,11 +116,6 @@ class AuthService: ObservableObject {
                 metadata: metadata
             )
             
-            #if DEBUG
-            if !displayName.isEmpty {
-                print("✅ AuthService: Display name set to: \(displayName)")
-            }
-            #endif
             
             // Check if email confirmation is required
             await MainActor.run {
@@ -157,9 +136,6 @@ class AuthService: ObservableObject {
                 isLoading = false
             }
             
-            #if DEBUG
-            print("✅ AuthService: Sign up successful - User ID: \(response.user.id.uuidString)")
-            #endif
         } catch {
             
             await MainActor.run {
@@ -168,16 +144,10 @@ class AuthService: ObservableObject {
             }
             ErrorSanitizer.logError(error, context: "signUp")
         }
-        #if DEBUG
-        print("🔄 AuthService: Sign up process completed")
-        #endif
     }
     
     // MARK: - Sign In
     func signIn(email: String, password: String) async {
-        #if DEBUG
-        print("🔑 AuthService: Starting sign in process for email: \(email)")
-        #endif
         
         // Validate inputs
         guard let credentials = await validateCredentials(email: email, password: password) else {
@@ -211,9 +181,6 @@ class AuthService: ObservableObject {
                 }
             }
             
-            #if DEBUG
-            print("✅ AuthService: Sign in successful - User ID: \(response.user.id.uuidString)")
-            #endif
         } catch {
             
             await MainActor.run {
@@ -235,16 +202,10 @@ class AuthService: ObservableObject {
             }
             ErrorSanitizer.logError(error, context: "signIn")
         }
-        #if DEBUG
-        print("🔄 AuthService: Sign in process completed")
-        #endif
     }
     
     // MARK: - Sign Out
     func signOut() async {
-        #if DEBUG
-        print("🚪 AuthService: Starting sign out process")
-        #endif
         await MainActor.run {
             isLoading = true
             errorMessage = nil
@@ -261,9 +222,6 @@ class AuthService: ObservableObject {
                 CategoryService.shared.clearUserData()
             }
             
-            #if DEBUG
-            print("✅ AuthService: Sign out successful")
-            #endif
         } catch {
             await MainActor.run {
                 errorMessage = ErrorSanitizer.sanitizeAuthError(error)
@@ -271,9 +229,6 @@ class AuthService: ObservableObject {
             }
             ErrorSanitizer.logError(error, context: "signOut")
         }
-        #if DEBUG
-        print("🔄 AuthService: Sign out process completed")
-        #endif
     }
     
     // MARK: - Email Verification

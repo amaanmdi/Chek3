@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct AuthView: View {
-    @StateObject private var authService = AuthService.shared
+    @StateObject private var authViewModel = AuthViewModel()
     @State private var email = ""
     @State private var password = ""
     @State private var firstName = ""
@@ -77,17 +77,17 @@ struct AuthView: View {
                             #if DEBUG
                             print("📝 AuthView: Calling signUp function")
                             #endif
-                            await authService.signUp(email: email, password: password, firstName: firstName, lastName: lastName)
+                            await authViewModel.signUp(email: email, password: password, firstName: firstName, lastName: lastName)
                         } else {
                             #if DEBUG
                             print("🔑 AuthView: Calling signIn function")
                             #endif
-                            await authService.signIn(email: email, password: password)
+                            await authViewModel.signIn(email: email, password: password)
                         }
                     }
                 }) {
                     HStack {
-                        if authService.isLoading {
+                        if authViewModel.isLoading {
                             ProgressView()
                                 .scaleEffect(0.8)
                         }
@@ -99,19 +99,19 @@ struct AuthView: View {
                     .foregroundColor(.white)
                     .cornerRadius(8)
                 }
-                .disabled(authService.isLoading || email.isEmpty || password.isEmpty)
+                .disabled(authViewModel.isLoading || email.isEmpty || password.isEmpty)
                 
                 // Email verification message for sign-ups
-                if isSignUp && authService.errorMessage?.contains("check your email") == true {
+                if isSignUp && authViewModel.errorMessage?.contains("check your email") == true {
                     VStack(spacing: 8) {
-                        Text(authService.errorMessage ?? "")
+                        Text(authViewModel.errorMessage ?? "")
                             .foregroundColor(.orange)
                             .font(.caption)
                             .multilineTextAlignment(.center)
                         
                         Button("Resend Verification Email") {
                             Task {
-                                await authService.resendEmailVerification()
+                                await authViewModel.resendEmailVerification()
                             }
                         }
                         .font(.caption)
@@ -141,7 +141,7 @@ struct AuthView: View {
             .padding()
             
             // Only show error message if it's not the email verification message
-            if let errorMessage = authService.errorMessage, 
+            if let errorMessage = authViewModel.errorMessage, 
                !errorMessage.contains("check your email") {
                 Text(errorMessage)
                     .foregroundColor(.red)
@@ -169,8 +169,8 @@ struct AuthView: View {
     }
     
     private func clearErrors() {
-        if let errorMessage = authService.errorMessage, !errorMessage.isEmpty {
-            authService.errorMessage = nil
+        if let errorMessage = authViewModel.errorMessage, !errorMessage.isEmpty {
+            authViewModel.errorMessage = nil
         }
         showEmailError = false
     }
