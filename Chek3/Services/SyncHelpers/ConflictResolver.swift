@@ -36,11 +36,11 @@ class ConflictResolver {
             #endif
             return remote
         } else {
-            // Same timestamp - use local (client wins ties to prevent data loss)
+            // Same timestamp - use remote (server wins ties for consistency)
             #if DEBUG
-            print("🔍 ConflictResolver: Same timestamp, keeping local version to prevent data loss")
+            print("🔍 ConflictResolver: Same timestamp, using remote version for consistency")
             #endif
-            return local
+            return remote
         }
     }
     
@@ -48,25 +48,16 @@ class ConflictResolver {
     /// - Parameters:
     ///   - localCategory: Local category to check
     ///   - pendingOperations: Current pending operations
-    ///   - pendingDeletions: Set of category IDs pending deletion
     /// - Returns: True if category should be kept, false if it should be removed
     func shouldKeepLocalCategory(
         _ localCategory: Category,
-        pendingOperations: [PendingOperation],
-        pendingDeletions: Set<UUID>
+        pendingOperations: [PendingOperation]
     ) -> Bool {
-        // Skip if pending deletion
-        if pendingDeletions.contains(localCategory.id) {
-            return false
-        }
-        
         // Check if this category is in pending operations (truly new)
         let isInPendingOperations = pendingOperations.contains { operation in
             switch operation {
             case .create(let cat), .update(let cat):
                 return cat.id == localCategory.id
-            case .delete(let id, _):
-                return id == localCategory.id
             }
         }
         

@@ -65,8 +65,24 @@ class AccountValidationService: AccountValidationProtocol {
             print("⚠️ AccountValidationService: Failed to validate account for user \(userID): \(error)")
             #endif
             
-            // If we can't validate the account (network error, etc.), assume it's valid
-            // to avoid signing out users due to temporary network issues
+            // Check if this is a network-related error
+            let errorString = error.localizedDescription.lowercased()
+            if errorString.contains("network") || 
+               errorString.contains("connection") || 
+               errorString.contains("timeout") ||
+               errorString.contains("offline") ||
+               errorString.contains("internet") {
+                #if DEBUG
+                print("🔍 AccountValidationService: Network error detected - assuming account is valid to prevent sign out")
+                #endif
+                return true
+            }
+            
+            // For other errors, also assume it's valid to avoid signing out users
+            // due to temporary server issues or other non-critical problems
+            #if DEBUG
+            print("🔍 AccountValidationService: Non-network error - assuming account is valid to prevent sign out")
+            #endif
             return true
         }
     }
@@ -100,6 +116,13 @@ class AccountValidationService: AccountValidationProtocol {
     
     /// Validates the current user's account and performs cleanup if invalid
     /// This is the main method to call on app load
+    /// 
+    /// IMPORTANT: This method will only sign out users if:
+    /// 1. We are online AND
+    /// 2. The user account has been definitively deleted from the server AND
+    /// 3. The session refresh fails due to account issues (not network issues)
+    /// 
+    /// Users will NOT be signed out due to network connectivity issues.
     func validateCurrentUserAccount() async {
         guard let currentUser = authService.currentUser else {
             #if DEBUG

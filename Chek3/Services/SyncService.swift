@@ -7,6 +7,11 @@
 
 import Foundation
 import Combine
+import Auth
+
+extension Notification.Name {
+    static let syncDataUpdated = Notification.Name("syncDataUpdated")
+}
 
 @MainActor
 class SyncService: ObservableObject {
@@ -38,12 +43,16 @@ class SyncService: ObservableObject {
     // MARK: - Network Change Handling
     
     private func handleNetworkChange(isOnline: Bool) async {
-        // If we just came back online and have pending operations, sync them
-        if isOnline && pendingOperationsManager.hasOperations {
+        // If we just came back online, perform full sync to validate/amend local data
+        if isOnline {
             #if DEBUG
-            print("🔄 SyncService: Network restored, syncing pending operations")
+            print("🔄 SyncService: Network restored, performing full sync to validate local data")
             #endif
-            await syncPendingOperations()
+            
+            // Get current user ID and perform full sync
+            if let currentUser = AuthService.shared.currentUser {
+                await syncFromRemote(for: currentUser.id)
+            }
         }
         
         updateSyncStatusForNetworkChange(isOnline: isOnline)
@@ -56,18 +65,32 @@ class SyncService: ObservableObject {
         }
         
         if isOnline {
-            // Just came online
+            // Just came online - check if we need to sync
             if pendingOperationsManager.hasOperations {
                 syncStatus = .pending
+                #if DEBUG
+                print("🌐 SyncService: Came online with pending operations - Status: .pending")
+                #endif
             } else {
+                // No pending operations - we're already synced
                 syncStatus = .synced
+                #if DEBUG
+                print("🌐 SyncService: Came online with no pending operations - Status: .synced")
+                #endif
             }
         } else {
-            // Just went offline
+            // Just went offline - local data is now source of truth
             if pendingOperationsManager.hasOperations {
                 syncStatus = .pending
+                #if DEBUG
+                print("🌐 SyncService: Went offline with pending operations - Status: .pending")
+                #endif
             } else {
+                // No pending operations - local data is authoritative while offline
                 syncStatus = .synced
+                #if DEBUG
+                print("🌐 SyncService: Went offline with no pending operations - Status: .synced")
+                #endif
             }
         }
     }
@@ -84,7 +107,12 @@ class SyncService: ObservableObject {
         syncStatus = .syncing
         
         if await syncCoordinator.syncCreateCategory(category, for: userID) != nil {
-            syncStatus = .synced
+            // Only set as synced if no other pending operations exist
+            if !pendingOperationsManager.hasOperations {
+                syncStatus = .synced
+            } else {
+                syncStatus = .pending
+            }
         } else {
             syncStatus = .error("Failed to sync category creation")
             // Add to pending operations for retry
@@ -102,7 +130,12 @@ class SyncService: ObservableObject {
         syncStatus = .syncing
         
         if await syncCoordinator.syncUpdateCategory(category, for: userID) != nil {
-            syncStatus = .synced
+            // Only set as synced if no other pending operations exist
+            if !pendingOperationsManager.hasOperations {
+                syncStatus = .synced
+            } else {
+                syncStatus = .pending
+            }
         } else {
             syncStatus = .error("Failed to sync category update")
             // Add to pending operations for retry
@@ -110,23 +143,6 @@ class SyncService: ObservableObject {
         }
     }
     
-    func syncDeleteCategory(id: UUID, for userID: UUID) async {
-        guard NetworkMonitorService.shared.isOnline else {
-            // If offline, just queue the operation
-            pendingOperationsManager.addOperation(.delete(id, userID: userID), for: userID)
-            return
-        }
-        
-        syncStatus = .syncing
-        
-        if await syncCoordinator.syncDeleteCategory(id: id, for: userID) {
-            syncStatus = .synced
-        } else {
-            syncStatus = .error("Failed to sync category deletion")
-            // Add to pending operations for retry
-            pendingOperationsManager.addOperation(.delete(id, userID: userID), for: userID)
-        }
-    }
     
     // MARK: - Pending Operations Sync
     
@@ -164,8 +180,6 @@ class SyncService: ObservableObject {
                 success = await syncCreateCategoryForPending(category, for: category.userID)
             case .update(let category):
                 success = await syncUpdateCategoryForPending(category, for: category.userID)
-            case .delete(let id, let userID):
-                success = await syncDeleteCategoryForPending(id: id, for: userID)
             }
             
             if success {
@@ -220,13 +234,6 @@ class SyncService: ObservableObject {
         return await syncCoordinator.syncUpdateCategory(category, for: userID) != nil
     }
     
-    private func syncDeleteCategoryForPending(id: UUID, for userID: UUID) async -> Bool {
-        guard NetworkMonitorService.shared.isOnline else {
-            return false // Will be retried later
-        }
-        
-        return await syncCoordinator.syncDeleteCategory(id: id, for: userID)
-    }
     
     // MARK: - Remote Sync Helpers
     
@@ -248,8 +255,6 @@ class SyncService: ObservableObject {
                 success = await syncCoordinator.syncCreateCategory(category, for: userID) != nil
             case .update(let category):
                 success = await syncCoordinator.syncUpdateCategory(category, for: userID) != nil
-            case .delete(let id, let userID):
-                success = await syncCoordinator.syncDeleteCategory(id: id, for: userID)
             }
             
             if success {
@@ -317,8 +322,6 @@ class SyncService: ObservableObject {
         // Get updated remote data after syncing pending operations
         let updatedRemoteCategories = await syncCoordinator.fetchRemoteCategories(for: userID) ?? []
         
-        // Get list of pending deletions to avoid resurrecting deleted categories
-        let pendingDeletions = pendingOperationsManager.getPendingDeletionIds()
         
         // Merge with local data, using lastEdited as source of truth
         var mergedCategories: [Category] = []
@@ -326,11 +329,6 @@ class SyncService: ObservableObject {
         
         // Process remote categories
         for remoteCategory in updatedRemoteCategories {
-            // Skip categories that are pending deletion
-            if pendingDeletions.contains(remoteCategory.id) {
-                continue
-            }
-            
             if let localCategory = localCategories.first(where: { $0.id == remoteCategory.id }) {
                 // Use ConflictResolver to determine which version to keep
                 let resolvedCategory = conflictResolver.resolveConflict(local: localCategory, remote: remoteCategory)
@@ -350,7 +348,7 @@ class SyncService: ObservableObject {
         // Handle local categories that don't exist remotely
         for localCategory in localCategories {
             if !updatedRemoteCategories.contains(where: { $0.id == localCategory.id }) {
-                if conflictResolver.shouldKeepLocalCategory(localCategory, pendingOperations: pendingOperationsManager.operations, pendingDeletions: pendingDeletions) {
+                if conflictResolver.shouldKeepLocalCategory(localCategory, pendingOperations: pendingOperationsManager.operations) {
                     mergedCategories.append(localCategory)
                     localCategoriesToUpdate.append(localCategory)
                 }
@@ -360,11 +358,18 @@ class SyncService: ObservableObject {
         // Save merged categories
         localStorageService.saveCategories(mergedCategories, for: userID)
         
+        // Immediately update UI with latest merged data
+        await MainActor.run {
+            // Notify CategoryService to refresh its data
+            NotificationCenter.default.post(name: .syncDataUpdated, object: mergedCategories)
+        }
+        
         #if DEBUG
         print("🔄 SyncService: Saved \(mergedCategories.count) merged categories to local storage")
         #endif
         
         // Sync local changes that are newer to remote
+        var hasFailedOperations = false
         for category in localCategoriesToUpdate {
             let success: Bool
             
@@ -383,17 +388,127 @@ class SyncService: ObservableObject {
                 } else {
                     pendingOperationsManager.addOperation(.create(category), for: userID)
                 }
+                hasFailedOperations = true
             }
         }
         
-        syncStatus = .synced
+        // Set sync status based on results
+        if hasFailedOperations {
+            syncStatus = .pending
+            #if DEBUG
+            print("🔄 SyncService: Setting status to .pending due to failed operations")
+            #endif
+        } else if pendingOperationsManager.hasOperations {
+            syncStatus = .pending
+            #if DEBUG
+            print("🔄 SyncService: Setting status to .pending due to remaining pending operations: \(pendingOperationsManager.operations.count)")
+            for (index, op) in pendingOperationsManager.operations.enumerated() {
+                switch op {
+                case .create(let category):
+                    print("  \(index + 1). CREATE: \(category.name) (ID: \(category.id.uuidString.prefix(8)))")
+                case .update(let category):
+                    print("  \(index + 1). UPDATE: \(category.name) (ID: \(category.id.uuidString.prefix(8)))")
+                }
+            }
+            #endif
+        } else {
+            syncStatus = .synced
+            #if DEBUG
+            print("✅ SyncService: Setting status to .synced - no failed operations, no pending operations")
+            #endif
+        }
         
         #if DEBUG
-        print("✅ SyncService: Sync completed successfully")
+        print("✅ SyncService: Final sync status: \(syncStatus)")
         #endif
     }
     
     func addPendingOperation(_ operation: PendingOperation, for userID: UUID) {
         pendingOperationsManager.addOperation(operation, for: userID)
+    }
+    
+    /// Clear all pending operations (for debugging)
+    func clearPendingOperations(for userID: UUID) {
+        pendingOperationsManager.clearOperations(for: userID)
+        updateSyncStatus()
+        
+        #if DEBUG
+        print("🧹 SyncService: Cleared all pending operations")
+        #endif
+    }
+    
+    /// Manually update sync status based on current state
+    func updateSyncStatus() {
+        let wasOnline = NetworkMonitorService.shared.isOnline
+        let hadOperations = pendingOperationsManager.hasOperations
+        
+        if wasOnline {
+            if hadOperations {
+                syncStatus = .pending
+            } else {
+                syncStatus = .synced
+            }
+        } else {
+            if hadOperations {
+                syncStatus = .pending
+            } else {
+                syncStatus = .synced
+            }
+        }
+        
+        #if DEBUG
+        print("🔄 SyncService: Manual status update - Status: \(syncStatus), Online: \(wasOnline), PendingOps: \(hadOperations)")
+        if hadOperations {
+            print("  Pending operations details:")
+            for (index, op) in pendingOperationsManager.operations.enumerated() {
+                switch op {
+                case .create(let category):
+                    print("    \(index + 1). CREATE: \(category.name) (ID: \(category.id.uuidString.prefix(8)))")
+                case .update(let category):
+                    print("    \(index + 1). UPDATE: \(category.name) (ID: \(category.id.uuidString.prefix(8)))")
+                }
+            }
+        }
+        #endif
+    }
+    
+    // MARK: - Sync Status Verification
+    
+    /// Verifies if the current sync status accurately reflects data synchronization
+    /// - Parameter userID: User ID to check sync status for
+    /// - Returns: True if sync status is accurate, false otherwise
+    func verifySyncStatusAccuracy(for userID: UUID) async -> Bool {
+        // If we're offline, local data is source of truth
+        guard NetworkMonitorService.shared.isOnline else {
+            // Offline: synced means local data is authoritative and no pending operations
+            switch syncStatus {
+            case .synced:
+                return !pendingOperationsManager.hasOperations
+            default:
+                return true
+            }
+        }
+        
+        // Online: If there are pending operations, we're definitely not synced
+        if pendingOperationsManager.hasOperations {
+            switch syncStatus {
+            case .synced:
+                return false
+            default:
+                return true
+            }
+        }
+        
+        // Online: If sync status claims we're synced, verify by comparing with remote
+        if case .synced = syncStatus {
+            let remoteCategories = await syncCoordinator.fetchRemoteCategories(for: userID) ?? []
+            let localCategories = localStorageService.loadCategories(for: userID)
+            
+            // Simple verification: check if counts match and no obvious discrepancies
+            // This is a basic check - in a production app you might want more sophisticated verification
+            return abs(remoteCategories.count - localCategories.count) <= 1
+        }
+        
+        return true // Other statuses are generally accurate
     }
 }

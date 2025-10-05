@@ -48,17 +48,6 @@ class CategoryViewModel: ObservableObject {
         categoryService.updateCategory(category)
     }
     
-    /// Deletes a category by ID
-    /// - Parameter id: UUID of category to delete
-    func deleteCategory(id: UUID) {
-        categoryService.deleteCategory(id: id)
-    }
-    
-    /// Deletes a category object
-    /// - Parameter category: Category to delete
-    func deleteCategory(_ category: Category) {
-        categoryService.deleteCategory(category)
-    }
     
     // MARK: - Sync Operations
     
@@ -80,5 +69,15 @@ class CategoryViewModel: ObservableObject {
     /// Forces sync when app becomes active
     func syncOnAppActive() {
         categoryService.syncOnAppActive()
+    }
+    
+    /// Manually update sync status
+    func updateSyncStatus() {
+        categoryService.updateSyncStatus()
+    }
+    
+    /// Clear all pending operations (for debugging)
+    func clearPendingOperations() {
+        categoryService.clearPendingOperations()
     }
 }

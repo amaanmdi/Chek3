@@ -115,16 +115,6 @@ class PendingOperationsManager {
         localStorageService.savePendingOperations(pendingOperations, for: userID)
     }
     
-    /// Gets pending deletion IDs
-    /// - Returns: Set of category IDs pending deletion
-    func getPendingDeletionIds() -> Set<UUID> {
-        return Set(pendingOperations.compactMap { operation in
-            if case .delete(let id, _) = operation {
-                return id
-            }
-            return nil
-        })
-    }
     
     // MARK: - Helper Methods
     
@@ -137,8 +127,6 @@ class PendingOperationsManager {
             return "create_\(category.id.uuidString)"
         case .update(let category):
             return "update_\(category.id.uuidString)"
-        case .delete(let id, _):
-            return "delete_\(id.uuidString)"
         }
     }
     
@@ -152,8 +140,6 @@ class PendingOperationsManager {
             return category.userID
         case .update(let category):
             return category.userID
-        case .delete(_, let userID):
-            return userID
         }
     }
 }

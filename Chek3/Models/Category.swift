@@ -18,6 +18,8 @@ struct Category: Codable, Identifiable, Equatable {
     let createdDate: Date
     var lastEdited: Date
     var syncedAt: Date?
+    var isDeleted: Bool
+    var deletedAt: Date?
     
     enum CodingKeys: String, CodingKey {
         case id
@@ -29,6 +31,8 @@ struct Category: Codable, Identifiable, Equatable {
         case createdDate = "created_date"
         case lastEdited = "last_edited"
         case syncedAt = "synced_at"
+        case isDeleted = "is_deleted"
+        case deletedAt = "deleted_at"
     }
     
     init(
@@ -40,7 +44,9 @@ struct Category: Codable, Identifiable, Equatable {
         isDefault: Bool = false,
         createdDate: Date = Date(),
         lastEdited: Date = Date(),
-        syncedAt: Date? = nil
+        syncedAt: Date? = nil,
+        isDeleted: Bool = false,
+        deletedAt: Date? = nil
     ) {
         self.id = id
         self.userID = userID
@@ -51,6 +57,8 @@ struct Category: Codable, Identifiable, Equatable {
         self.createdDate = createdDate
         self.lastEdited = lastEdited
         self.syncedAt = syncedAt
+        self.isDeleted = isDeleted
+        self.deletedAt = deletedAt
     }
     
     // MARK: - Computed Properties
@@ -65,10 +73,6 @@ struct Category: Codable, Identifiable, Equatable {
         return !isSystemDefault
     }
     
-    /// Returns true if this category can be deleted by the user
-    var canBeDeleted: Bool {
-        return !isSystemDefault
-    }
     
     /// Returns true if this category's color can be changed by the user
     var canChangeColor: Bool {
@@ -107,12 +111,11 @@ struct ColorData: Codable, Equatable {
 enum PendingOperation: Codable, Equatable {
     case create(Category)
     case update(Category)
-    case delete(UUID, userID: UUID)
 }
 
 
 // Sync status
-enum SyncStatus {
+enum SyncStatus: Equatable {
     case synced
     case syncing
     case pending

@@ -11,10 +11,10 @@ This document describes a robust offline-first synchronization system designed f
 - Data is immediately available to users regardless of connectivity
 - Network operations are treated as sync operations, not primary operations
 
-### 2. **Client Wins Conflict Resolution**
-- When timestamps are equal, client data takes precedence
-- Prevents accidental data loss from network issues
-- Maintains user confidence in their data
+### 2. **Server Wins Ties Conflict Resolution**
+- When timestamps are equal, server data takes precedence
+- Ensures consistency across devices
+- Prevents client-side data corruption
 
 ### 3. **Timestamp-Based Synchronization**
 - Uses `lastEdited` timestamps as the source of truth
@@ -24,7 +24,7 @@ This document describes a robust offline-first synchronization system designed f
 ### 4. **Graceful Degradation**
 - App remains fully functional offline
 - Network issues don't break user workflows
-- Automatic retry with exponential backoff
+- Automatic retry with fixed delays
 
 ## Architecture Components
 
@@ -39,12 +39,27 @@ This document describes a robust offline-first synchronization system designed f
 ```swift
 @MainActor
 class SyncService: ObservableObject {
+    static let shared = SyncService()
+    
     @Published var syncStatus: SyncStatus = .synced
     
     private let conflictResolver = ConflictResolver()
     private let pendingOperationsManager: PendingOperationsManager
     private let syncCoordinator: SyncCoordinator
+    private let localStorageService = LocalStorageService.shared
     private var isSyncingPendingOperations = false
+    
+    // Public methods
+    func syncCreateCategory(_ category: Category, for userID: UUID) async
+    func syncUpdateCategory(_ category: Category, for userID: UUID) async
+    func syncPendingOperations() async
+    func loadUserData(for userID: UUID)
+    func clearUserData(for userID: UUID)
+    func syncFromRemote(for userID: UUID) async
+    func addPendingOperation(_ operation: PendingOperation, for userID: UUID)
+    func clearPendingOperations(for userID: UUID)
+    func updateSyncStatus()
+    func verifySyncStatusAccuracy(for userID: UUID) async -> Bool
 }
 ```
 
@@ -59,18 +74,17 @@ class SyncService: ObservableObject {
 class SyncCoordinator {
     func syncCreateCategory(_ category: Category, for userID: UUID) async -> Category?
     func syncUpdateCategory(_ category: Category, for userID: UUID) async -> Category?
-    func syncDeleteCategory(id: UUID, for userID: UUID) async -> Bool
     func fetchRemoteCategories(for userID: UUID) async -> [Category]?
 }
 ```
 
 ### 3. **ConflictResolver** (Data Consistency)
 - **Purpose**: Resolves conflicts between local and remote data
-- **Strategy**: Timestamp-based with client preference
+- **Strategy**: Timestamp-based with server preference for ties
 - **Logic**:
   - `local.lastEdited > remote.lastEdited` → Keep local
   - `remote.lastEdited > local.lastEdited` → Keep remote  
-  - `local.lastEdited == remote.lastEdited` → Keep local (client wins)
+  - `local.lastEdited == remote.lastEdited` → Keep remote (server wins ties)
 
 ```swift
 class ConflictResolver {
@@ -83,7 +97,7 @@ class ConflictResolver {
         } else if remoteTime > localTime {
             return remote // Server wins
         } else {
-            return local  // Client wins ties
+            return remote // Server wins ties
         }
     }
 }
@@ -130,7 +144,6 @@ struct Entity: Codable, Identifiable, Equatable {
 enum PendingOperation: Codable, Equatable {
     case create(Entity)
     case update(Entity)  
-    case delete(UUID, userID: UUID)
 }
 ```
 
@@ -241,10 +254,11 @@ NetworkMonitorService.shared.setConnectivityCallback { [weak self] isOnline in
 }
 ```
 
-### Retry Logic with Exponential Backoff
+### Retry Logic with Fixed Delays
 - Max 3 retries per operation
 - Operations exceeding retry limit are removed from queue
-- Small delay between operations (100ms) to prevent API overload
+- Fixed 100ms delay between operations to prevent API overload
+- Note: Currently uses fixed delays, not exponential backoff
 
 ### User Data Isolation
 - All operations are scoped to `userID`
@@ -260,12 +274,12 @@ NetworkMonitorService.shared.setConnectivityCallback { [weak self] isOnline in
 
 ### 2. **Sync Failures**
 - Failed operations added to pending queue
-- Retry with exponential backoff
+- Retry with fixed delays (100ms between operations)
 - Max retry limit prevents infinite loops
 
 ### 3. **Data Conflicts**
 - Timestamp-based resolution
-- Client wins on ties
+- Server wins on ties for consistency
 - No data loss scenarios
 
 ## Performance Considerations

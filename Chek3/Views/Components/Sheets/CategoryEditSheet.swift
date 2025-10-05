@@ -17,6 +17,7 @@ struct CategoryEditSheet: View {
     @State private var name: String = ""
     @State private var income: Bool = false
     @State private var color: Color = .blue
+    @State private var deletedAt: Date? = nil
     
     var isEditing: Bool {
         category != nil
@@ -31,6 +32,20 @@ struct CategoryEditSheet: View {
                     
                     Toggle("Income Category", isOn: $income)
                         .disabled(category?.canChangeType == false)
+                    
+                    HStack {
+                        Text("Is Deleted")
+                        Spacer()
+                        Text(category?.isDeleted == true ? "TRUE" : "FALSE")
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    HStack {
+                        Text("Deleted At")
+                        Spacer()
+                        Text(deletedAt?.formatted() ?? "Not deleted")
+                            .foregroundColor(.secondary)
+                    }
                 }
                 
                 if let category = category, category.isSystemDefault {
@@ -80,6 +95,10 @@ struct CategoryEditSheet: View {
                 green: category.color.green,
                 blue: category.color.blue
             ).opacity(category.color.alpha)
+            deletedAt = category.deletedAt
+        } else {
+            // For new categories, set default values
+            deletedAt = nil
         }
     }
     
@@ -129,7 +148,9 @@ struct CategoryEditSheet: View {
                 isDefault: existingCategory.isDefault, // Preserve original default status
                 createdDate: existingCategory.createdDate,
                 lastEdited: Date(),
-                syncedAt: existingCategory.syncedAt
+                syncedAt: existingCategory.syncedAt,
+                isDeleted: existingCategory.isDeleted,
+                deletedAt: existingCategory.deletedAt
             )
             categoryViewModel.updateCategory(updatedCategory)
         } else {
@@ -139,7 +160,9 @@ struct CategoryEditSheet: View {
                 name: name.trimmingCharacters(in: .whitespacesAndNewlines),
                 income: income,
                 color: colorData,
-                isDefault: false // User-created categories are always default = false
+                isDefault: false, // User-created categories are always default = false
+                isDeleted: false, // New categories are not deleted
+                deletedAt: nil // New categories have no deletion timestamp
             )
             categoryViewModel.createCategory(newCategory)
         }

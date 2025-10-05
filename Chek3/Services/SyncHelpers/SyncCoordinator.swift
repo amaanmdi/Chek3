@@ -35,6 +35,11 @@ class SyncCoordinator {
             // Update local storage with synced timestamp
             updateLocalCategoryWithSyncTimestamp(syncedCategory, for: userID)
             
+            // Notify that data has been updated
+            await MainActor.run {
+                NotificationCenter.default.post(name: .syncDataUpdated, object: nil)
+            }
+            
             return syncedCategory
         } catch {
             #if DEBUG
@@ -56,6 +61,11 @@ class SyncCoordinator {
             // Update local storage with synced timestamp
             updateLocalCategoryWithSyncTimestamp(syncedCategory, for: userID)
             
+            // Notify that data has been updated
+            await MainActor.run {
+                NotificationCenter.default.post(name: .syncDataUpdated, object: nil)
+            }
+            
             return syncedCategory
         } catch {
             #if DEBUG
@@ -65,22 +75,6 @@ class SyncCoordinator {
         }
     }
     
-    /// Syncs a category deletion to remote
-    /// - Parameters:
-    ///   - categoryId: ID of category to delete
-    ///   - userID: User ID for the operation
-    /// - Returns: True if successful, false if failed
-    func syncDeleteCategory(id categoryId: UUID, for userID: UUID) async -> Bool {
-        do {
-            try await categoryRepository.deleteCategory(id: categoryId, for: userID)
-            return true
-        } catch {
-            #if DEBUG
-            print("❌ SyncCoordinator: Failed to delete category: \(error.localizedDescription)")
-            #endif
-            return false
-        }
-    }
     
     /// Fetches all categories for a user from remote
     /// - Parameter userID: User ID to fetch categories for
@@ -106,12 +100,8 @@ class SyncCoordinator {
     private func updateLocalCategoryWithSyncTimestamp(_ syncedCategory: Category, for userID: UUID) {
         var localCategories = localStorageService.loadCategories(for: userID)
         if let index = localCategories.firstIndex(where: { $0.id == syncedCategory.id }) {
-            let localCategory = localCategories[index]
-            
-            // Preserve client timestamp if it's newer than server timestamp
-            let finalTimestamp = localCategory.lastEdited > syncedCategory.lastEdited 
-                ? localCategory.lastEdited 
-                : syncedCategory.lastEdited
+            // Use server timestamp for consistency (server is source of truth after sync)
+            let finalTimestamp = syncedCategory.lastEdited
             
             localCategories[index] = Category(
                 id: syncedCategory.id,
@@ -122,7 +112,9 @@ class SyncCoordinator {
                 isDefault: syncedCategory.isDefault,
                 createdDate: syncedCategory.createdDate,
                 lastEdited: finalTimestamp, // Use preserved timestamp
-                syncedAt: Date()
+                syncedAt: Date(),
+                isDeleted: syncedCategory.isDeleted,
+                deletedAt: syncedCategory.deletedAt
             )
             localStorageService.saveCategories(localCategories, for: userID)
         }
