@@ -1,0 +1,4 @@
+---
+alwaysApply: true
+---
+Anytime anything about the Sync implementation, logic or philosophy is changed, updated or deleted ensure the SyncImplementationGuide.md file is updated and accurate.
