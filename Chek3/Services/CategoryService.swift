@@ -76,12 +76,33 @@ class CategoryService: ObservableObject {
     // MARK: - CRUD Operations
     
     func createCategory(_ category: Category) {
-        categories.append(category)
+        // For system default categories, preserve the isDefault status
+        // For user-created categories, ensure they are never marked as default
+        let finalCategory: Category
+        if category.isSystemDefault {
+            // System default categories keep their isDefault = true status
+            finalCategory = category
+        } else {
+            // User-created categories are always default = false
+            finalCategory = Category(
+                id: category.id,
+                userID: category.userID,
+                name: category.name,
+                income: category.income,
+                color: category.color,
+                isDefault: false, // User-created categories are always default = false
+                createdDate: category.createdDate,
+                lastEdited: category.lastEdited,
+                syncedAt: category.syncedAt
+            )
+        }
+        
+        categories.append(finalCategory)
         saveLocalCategories()
         
         let userID = getCurrentUserID()
         Task {
-            await syncService.syncCreateCategory(category, for: userID)
+            await syncService.syncCreateCategory(finalCategory, for: userID)
         }
     }
     
@@ -95,13 +116,61 @@ class CategoryService: ObservableObject {
             return
         }
         
+        // Check if this is a system default category and what changes are being made
+        if category.isSystemDefault {
+            // For system default categories, only allow color changes
+            if let existingCategory = categories.first(where: { $0.id == category.id }) {
+                let nameChanged = existingCategory.name != category.name
+                let typeChanged = existingCategory.income != category.income
+                
+                if nameChanged || typeChanged {
+                    #if DEBUG
+                    print("⚠️ Attempted to modify protected properties of system default category: \(category.name)")
+                    #endif
+                    return
+                }
+            }
+        }
+        
         if let index = categories.firstIndex(where: { $0.id == category.id }) {
-            categories[index] = category
+            let existingCategory = categories[index]
+            
+            // For system default categories, preserve protected properties
+            let finalCategory: Category
+            if existingCategory.isSystemDefault {
+                // Only allow color changes for system default categories
+                finalCategory = Category(
+                    id: category.id,
+                    userID: category.userID,
+                    name: existingCategory.name, // Preserve original name
+                    income: existingCategory.income, // Preserve original type
+                    color: category.color, // Allow color changes
+                    isDefault: existingCategory.isDefault, // Preserve original default status
+                    createdDate: category.createdDate,
+                    lastEdited: Date(),
+                    syncedAt: category.syncedAt
+                )
+            } else {
+                // For user-created categories, allow all changes except default status
+                finalCategory = Category(
+                    id: category.id,
+                    userID: category.userID,
+                    name: category.name,
+                    income: category.income,
+                    color: category.color,
+                    isDefault: false, // User-created categories are always default = false
+                    createdDate: category.createdDate,
+                    lastEdited: Date(),
+                    syncedAt: category.syncedAt
+                )
+            }
+            
+            categories[index] = finalCategory
             saveLocalCategories()
             
             let userID = getCurrentUserID()
             Task {
-                await syncService.syncUpdateCategory(category, for: userID)
+                await syncService.syncUpdateCategory(finalCategory, for: userID)
             }
         }
     }
@@ -113,6 +182,14 @@ class CategoryService: ObservableObject {
               categoryToDelete.userID == currentUser.id else {
             #if DEBUG
             print("⚠️ Security Warning: Attempted to delete category not owned by current user")
+            #endif
+            return
+        }
+        
+        // Prevent deletion of system default categories
+        if categoryToDelete.isSystemDefault {
+            #if DEBUG
+            print("⚠️ Attempted to delete system default category: \(categoryToDelete.name)")
             #endif
             return
         }
@@ -177,6 +254,14 @@ class CategoryService: ObservableObject {
     
     /// Delete a category with confirmation
     func deleteCategory(_ category: Category) {
+        // Prevent deletion of system default categories
+        if category.isSystemDefault {
+            #if DEBUG
+            print("⚠️ Attempted to delete system default category: \(category.name)")
+            #endif
+            return
+        }
+        
         // Remove from local array immediately
         categories.removeAll { $0.id == category.id }
         saveLocalCategories()

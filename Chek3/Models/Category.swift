@@ -52,6 +52,38 @@ struct Category: Codable, Identifiable, Equatable {
         self.lastEdited = lastEdited
         self.syncedAt = syncedAt
     }
+    
+    // MARK: - Computed Properties
+    
+    /// Returns true if this is a system default category that cannot be renamed or deleted
+    var isSystemDefault: Bool {
+        return isDefault && DefaultCategoryService.isDefaultCategoryName(name)
+    }
+    
+    /// Returns true if this category can be renamed by the user
+    var canBeRenamed: Bool {
+        return !isSystemDefault
+    }
+    
+    /// Returns true if this category can be deleted by the user
+    var canBeDeleted: Bool {
+        return !isSystemDefault
+    }
+    
+    /// Returns true if this category's color can be changed by the user
+    var canChangeColor: Bool {
+        return true // All categories can have their colors changed
+    }
+    
+    /// Returns true if this category's income/expense type can be changed by the user
+    var canChangeType: Bool {
+        return !isSystemDefault // System default categories keep their predefined types
+    }
+    
+    /// Returns true if the default status can be toggled by the user
+    var canToggleDefault: Bool {
+        return false // Users can no longer toggle default status
+    }
 }
 
 // Color data structure for JSONB storage

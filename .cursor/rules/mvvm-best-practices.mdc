@@ -1,0 +1,5 @@
+---
+alwaysApply: true
+---
+
+Always ensure seperation of concerns in accordance to MVVM best practices and also general adherence to MVVM best practices accross the board.

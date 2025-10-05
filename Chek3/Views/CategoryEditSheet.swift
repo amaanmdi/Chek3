@@ -17,7 +17,6 @@ struct CategoryEditSheet: View {
     @State private var name: String = ""
     @State private var income: Bool = false
     @State private var color: Color = .blue
-    @State private var isDefault: Bool = false
     
     var isEditing: Bool {
         category != nil
@@ -28,10 +27,22 @@ struct CategoryEditSheet: View {
             Form {
                 Section("Category Details") {
                     TextField("Category Name", text: $name)
+                        .disabled(category?.canBeRenamed == false)
                     
                     Toggle("Income Category", isOn: $income)
-                    
-                    Toggle("Default Category", isOn: $isDefault)
+                        .disabled(category?.canChangeType == false)
+                }
+                
+                if let category = category, category.isSystemDefault {
+                    Section {
+                        HStack {
+                            Image(systemName: "info.circle")
+                                .foregroundColor(.blue)
+                            Text("This is a system default category. You can change the color, but the name and type cannot be modified.")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
                 }
                 
                 Section("Color") {
@@ -69,7 +80,6 @@ struct CategoryEditSheet: View {
                 green: category.color.green,
                 blue: category.color.blue
             ).opacity(category.color.alpha)
-            isDefault = category.isDefault
         }
     }
     
@@ -113,23 +123,23 @@ struct CategoryEditSheet: View {
             let updatedCategory = Category(
                 id: existingCategory.id,
                 userID: existingCategory.userID,
-                name: name.trimmingCharacters(in: .whitespacesAndNewlines),
-                income: income,
-                color: colorData,
-                isDefault: isDefault,
+                name: existingCategory.isSystemDefault ? existingCategory.name : name.trimmingCharacters(in: .whitespacesAndNewlines),
+                income: existingCategory.isSystemDefault ? existingCategory.income : income,
+                color: colorData, // Color can always be changed
+                isDefault: existingCategory.isDefault, // Preserve original default status
                 createdDate: existingCategory.createdDate,
                 lastEdited: Date(),
                 syncedAt: existingCategory.syncedAt
             )
             categoryViewModel.updateCategory(updatedCategory)
         } else {
-            // Create new category
+            // Create new category (user-created categories are always default = false)
             let newCategory = Category(
                 userID: currentUser.id,
                 name: name.trimmingCharacters(in: .whitespacesAndNewlines),
                 income: income,
                 color: colorData,
-                isDefault: isDefault
+                isDefault: false // User-created categories are always default = false
             )
             categoryViewModel.createCategory(newCategory)
         }

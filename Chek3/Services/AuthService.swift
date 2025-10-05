@@ -59,6 +59,11 @@ class AuthService: ObservableObject {
             if sessionManager.isSessionValid {
                 // Load user data
                 CategoryService.shared.loadUserData()
+                
+                // Check if this is a new user and create default categories
+                if let currentUser = sessionManager.currentSession?.user {
+                    await checkAndSetupDefaultCategories(for: currentUser.id)
+                }
             }
         }
     }
@@ -175,6 +180,11 @@ class AuthService: ObservableObject {
                     
                     // Load user data
                     CategoryService.shared.loadUserData()
+                    
+                    // Check if this is a new user and create default categories
+                    Task {
+                        await checkAndSetupDefaultCategories(for: session.user.id)
+                    }
                 } else {
                     errorMessage = "Unable to establish session. Please try again."
                     isLoading = false
@@ -193,8 +203,8 @@ class AuthService: ObservableObject {
                     errorMessage = "Please verify your email before signing in. Check your inbox for a verification link."
                 } else if errorString.contains("invalid credentials") || 
                           errorString.contains("invalid login") {
-                    // Provide helpful message for invalid credentials that might be due to unverified email
-                    errorMessage = "Invalid credentials. If you recently signed up, please check your email and verify your account before signing in."
+                    // Provide helpful message for invalid credentials
+                    errorMessage = "Invalid email or password. Please check your credentials and try again."
                 } else {
                     errorMessage = ErrorSanitizer.sanitizeAuthError(error)
                 }
@@ -246,6 +256,38 @@ class AuthService: ObservableObject {
                 errorMessage = ErrorSanitizer.sanitizeAuthError(error)
             }
             ErrorSanitizer.logError(error, context: "resendEmailVerification")
+        }
+    }
+    
+    // MARK: - Default Category Setup
+    
+    /// Checks if user has any categories and sets up default categories if they don't
+    /// - Parameter userID: The ID of the user to check
+    private func checkAndSetupDefaultCategories(for userID: UUID) async {
+        // Check if user already has categories
+        let existingCategories = CategoryService.shared.categories
+        
+        #if DEBUG
+        print("🔍 AuthService: Checking default categories for user \(userID) - Found \(existingCategories.count) existing categories")
+        #endif
+        
+        // If user has no categories, create default ones
+        if existingCategories.isEmpty {
+            do {
+                try await DefaultCategoryService.shared.setupDefaultCategories(for: userID)
+                
+                #if DEBUG
+                print("✅ AuthService: Created default categories for new user \(userID)")
+                #endif
+            } catch {
+                #if DEBUG
+                print("⚠️ AuthService: Failed to setup default categories for user \(userID): \(error)")
+                #endif
+            }
+        } else {
+            #if DEBUG
+            print("ℹ️ AuthService: User \(userID) already has \(existingCategories.count) categories, skipping default setup")
+            #endif
         }
     }
 }

@@ -29,7 +29,7 @@ Chek3/
 ├── Models/        # Data models (Category, PendingOperation, SyncStatus)
 ├── Views/         # SwiftUI views (pure UI logic)
 ├── ViewModels/    # ViewModels (View logic, binds to Services)
-├── Services/      # Business logic (AuthService, CategoryService, SyncService)
+├── Services/      # Business logic (AuthService, CategoryService, SyncService, DefaultCategoryService)
 │   └── SyncHelpers/ # Internal sync components (ConflictResolver, PendingOperationsManager, SyncCoordinator)
 ├── Repositories/  # Data access (CategoryRepository, AuthRepository)
 └── Utilities/     # Validation, error handling, and extensions
@@ -54,16 +54,18 @@ Chek3/
 
 ### **📊 Category Management Features**
 - **Create Categories**: Add new budget categories with custom colors
-- **Edit Categories**: Modify category properties (name, color, type, default status)
-- **Delete Categories**: Remove categories with swipe-to-delete
+- **Edit Categories**: Modify category properties (name, color, type)
+- **Delete Categories**: Remove user-created categories with swipe-to-delete
 - **Category Types**: Distinguish between income and expense categories
-- **Default Categories**: Mark categories as default for quick access
+- **Default Categories**: System-created default categories for new users
 - **Color Coding**: Visual category identification with custom colors
+- **System Default Categories**: Pre-created categories with customizable colors but protected names/types
 
 ### **🛡️ Security & Validation**
 - **Input Validation**: Email format and password strength validation
 - **Rate Limiting**: Protection against brute force attacks
-- **Error Sanitization**: User-friendly error messages
+- **Error Sanitization**: User-friendly error messages with proper display logic
+- **Credential Validation**: Clear feedback for invalid login attempts
 - **Secure Storage**: Token management handled by Supabase SDK
 
 ### **🔄 Sync & Offline Features**
@@ -130,6 +132,7 @@ open Chek3.xcodeproj
 ### **Services Layer** (`Services/`)
 - `AuthService.swift` - Authentication business logic and coordination
 - `CategoryService.swift` - Category business logic and coordination
+- `DefaultCategoryService.swift` - Default category setup for new users
 - `NetworkMonitorService.swift` - Network connectivity monitoring
 - `LocalStorageService.swift` - Local data persistence management
 - `SyncService.swift` - Data synchronization logic (refactored with helper classes)
@@ -170,19 +173,31 @@ open Chek3.xcodeproj
    - Updates automatically when authentication state changes
 
 ### **Category Management Flow**
-1. **Category Creation**:
+1. **New User Setup**:
+   - Upon first sign-in after email verification, system automatically creates 4 default categories
+   - Income: "Other" (green color)
+   - Expenses: "Backlog" (orange), "Fixed" (blue), "One-off" (purple)
+   - Default categories are marked as `isDefault = true` and cannot be modified
+   - Only creates default categories if user has no existing categories
+
+2. **Category Creation**:
    - User taps "+" button to create new category
    - `CategoryEditSheet` opens with form fields
+   - User-created categories are always `isDefault = false`
    - Category is created locally and queued for sync
 
-2. **Category Editing**:
+3. **Category Editing**:
    - User taps on existing category in list
    - `CategoryEditSheet` opens with pre-filled data
+   - System default categories show info message and disable name/type editing
+   - System default categories allow color customization
+   - User-created categories can be modified normally
    - Changes are saved locally and synced to Supabase
 
-3. **Category Deletion**:
-   - User swipes to delete category
-   - Category is removed locally and deletion is queued for sync
+4. **Category Deletion**:
+   - System default categories cannot be deleted
+   - User-created categories can be deleted with swipe gesture
+   - Deletion is prevented at service level for system categories
 
 4. **Sync Process**:
    - Local changes are immediately applied to UI
@@ -197,6 +212,15 @@ open Chek3.xcodeproj
 - Handles signup, signin, signout, and session management
 - Publishes authentication state for UI updates
 - Includes rate limiting and validation
+- Triggers default category setup for new users
+
+#### **DefaultCategoryService** (`Services/DefaultCategoryService.swift`)
+- Implements `DefaultCategorySetupProtocol` for new user onboarding
+- Creates 4 default categories upon account creation:
+  - Income: "Other" (green)
+  - Expenses: "Backlog" (orange), "Fixed" (blue), "One-off" (purple)
+- Ensures default categories are marked as `isDefault = true`
+- Provides validation utilities for system default categories
 
 #### **AuthView** (`Views/AuthView.swift`)
 - Complete authentication interface

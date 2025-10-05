@@ -102,7 +102,7 @@ struct AuthView: View {
                 .disabled(authViewModel.isLoading || email.isEmpty || password.isEmpty)
                 
                 // Email verification message for sign-ups
-                if isSignUp && authViewModel.errorMessage?.contains("check your email") == true {
+                if isSignUp && authViewModel.errorMessage?.contains("Please check your email and confirm your account") == true {
                     VStack(spacing: 8) {
                         Text(authViewModel.errorMessage ?? "")
                             .foregroundColor(.orange)
@@ -142,7 +142,7 @@ struct AuthView: View {
             
             // Only show error message if it's not the email verification message
             if let errorMessage = authViewModel.errorMessage, 
-               !errorMessage.contains("check your email") {
+               !errorMessage.contains("Please check your email and confirm your account") {
                 Text(errorMessage)
                     .foregroundColor(.red)
                     .font(.caption)
